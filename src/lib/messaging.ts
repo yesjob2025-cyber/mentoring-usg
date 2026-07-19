@@ -182,3 +182,26 @@ export async function notifyStudentNewAnswer(
 }
 
 export const messagingProvider = PROVIDER;
+
+/** 진단용 테스트 발송 — 현재 provider 로 간단한 메시지를 보내고 원본 결과 반환 */
+export async function sendTestMessage(to: string): Promise<SendResult & { env: Record<string, boolean> }> {
+  const result = await send({
+    to,
+    recvName: "테스트",
+    tplCode: process.env.KAKAO_TPL_NEW_QUESTION || "test",
+    subject: "[YESJOB] 발송 테스트",
+    message: "YESJOB 멘토링 발송 테스트 메시지입니다. 이 문자가 오면 연동 성공입니다.",
+    button: { name: "사이트 열기", url: SITE_URL },
+  });
+  return {
+    ...result,
+    env: {
+      KAKAO_PROVIDER: !!process.env.KAKAO_PROVIDER,
+      ALIGO_API_KEY: !!process.env.ALIGO_API_KEY,
+      ALIGO_USER_ID: !!process.env.ALIGO_USER_ID,
+      ALIGO_SENDER: !!process.env.ALIGO_SENDER,
+      ALIGO_TESTMODE_isY: (process.env.ALIGO_TESTMODE || "N").toUpperCase() === "Y",
+      TEST_REDIRECT_PHONE: !!process.env.TEST_REDIRECT_PHONE,
+    },
+  };
+}
