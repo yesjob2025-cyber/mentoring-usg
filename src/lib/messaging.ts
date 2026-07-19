@@ -2,10 +2,11 @@ import "server-only";
 import type { Mentor, Question, Answer, User } from "./types";
 
 // ─────────────────────────────────────────────────────────────
-// 카카오 알림톡 발송 어댑터
+// 메시지 발송 어댑터
 //  - provider = "stub"  : 콘솔 로그(기본, 키 없이 구동)
-//  - provider = "aligo" : 알리고 카카오 알림톡 API 연동
-//  실제 발송에는 알리고 apikey/userid/senderkey 와 승인된 템플릿이 필요합니다.
+//  - provider = "sms"   : 알리고 문자(SMS/LMS) — 발신번호+API키만 필요(채널/템플릿 불필요)
+//  - provider = "aligo" : 알리고 카카오 알림톡 — 채널·발신키·승인 템플릿 필요
+//  카카오 채널 인증 전에는 "sms" 로 먼저 운영하고, 승인 후 "aligo" 로 전환하면 됩니다.
 // ─────────────────────────────────────────────────────────────
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -78,6 +79,45 @@ async function sendViaAligo(p: AlimtalkPayload): Promise<SendResult> {
   }
 }
 
+async function sendViaAligoSms(p: AlimtalkPayload): Promise<SendResult> {
+  const key = process.env.ALIGO_API_KEY || process.env.KAKAO_API_KEY;
+  const userId = process.env.ALIGO_USER_ID;
+  const sender = process.env.ALIGO_SENDER;
+  if (!key || !userId || !sender) {
+    return {
+      ok: false,
+      provider: "sms",
+      to: p.to,
+      detail: "알리고 문자 환경변수(ALIGO_API_KEY/ALIGO_USER_ID/ALIGO_SENDER) 누락",
+    };
+  }
+  // 링크 버튼은 문자에선 본문 하단에 URL 로 첨부
+  const msg = p.button ? `${p.message}\n\n▶ ${p.button.name}\n${p.button.url}` : p.message;
+
+  const form = new URLSearchParams();
+  form.set("key", key);
+  form.set("user_id", userId);
+  form.set("sender", sender.replace(/[^0-9]/g, ""));
+  form.set("receiver", p.to.replace(/[^0-9]/g, ""));
+  form.set("msg", msg);
+  form.set("title", p.subject.slice(0, 40));
+  form.set("msg_type", "LMS"); // 90byte 초과 장문
+  form.set("testmode_yn", (process.env.ALIGO_TESTMODE || "N").toUpperCase());
+
+  try {
+    const res = await fetch("https://apis.aligo.in/send/", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString(),
+    });
+    const json = (await res.json()) as { result_code?: number | string; message?: string };
+    if (String(json.result_code) === "1") return { ok: true, provider: "sms", to: p.to, detail: json.message };
+    return { ok: false, provider: "sms", to: p.to, detail: json.message || "문자 발송 실패" };
+  } catch (e) {
+    return { ok: false, provider: "sms", to: p.to, detail: (e as Error).message };
+  }
+}
+
 function sendViaStub(p: AlimtalkPayload): SendResult {
   // 개발/데모: 실제 발송 없이 콘솔에 출력
   // eslint-disable-next-line no-console
@@ -90,9 +130,10 @@ function sendViaStub(p: AlimtalkPayload): SendResult {
 }
 
 async function send(p: AlimtalkPayload): Promise<SendResult> {
-  // 테스트 리다이렉트: 수신번호만 테스트 번호로 교체 (메시지 본문은 템플릿 일치 위해 그대로)
+  // 테스트 리다이렉트: 수신번호만 테스트 번호로 교체 (알림톡 템플릿 일치 위해 본문은 그대로)
   const payload: AlimtalkPayload = TEST_REDIRECT ? { ...p, to: TEST_REDIRECT } : p;
-  if (PROVIDER === "aligo") return sendViaAligo(payload);
+  if (PROVIDER === "aligo" || PROVIDER === "alimtalk") return sendViaAligo(payload);
+  if (PROVIDER === "sms" || PROVIDER === "aligo_sms") return sendViaAligoSms(payload);
   return sendViaStub(payload);
 }
 
