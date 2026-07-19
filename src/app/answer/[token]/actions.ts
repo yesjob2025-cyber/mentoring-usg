@@ -10,16 +10,12 @@ export async function submitAnswerAction(token: string, body: string): Promise<A
   const res = submitAnswerByToken(token, body);
   if (!res.ok) return { ok: false, error: res.error };
 
-  // 학생에게 답변 도착 카카오 알림톡
-  let notified = false;
+  // 학생에게 답변 도착 알림 (데모 스토어에서 사용자 유실 시 질문의 작성자명으로 폴백)
   const student = getUserById(res.question.authorUserId);
-  if (student) {
-    const r = await notifyStudentNewAnswer(
-      { name: student.name, phone: student.phone },
-      res.question,
-      res.answer
-    );
-    notified = r.ok;
-  }
-  return { ok: true, notified };
+  const r = await notifyStudentNewAnswer(
+    { name: student?.name ?? res.question.authorName, phone: student?.phone },
+    res.question,
+    res.answer
+  );
+  return { ok: true, notified: r.ok };
 }

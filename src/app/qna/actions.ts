@@ -41,8 +41,21 @@ export async function askAction(input: {
   if (!session || session.role !== "student" || !session.uid) {
     return { ok: false, error: "질문하려면 로그인이 필요합니다.", needAuth: true };
   }
-  const user = getUserById(session.uid);
-  if (!user) return { ok: false, error: "사용자 정보를 찾을 수 없습니다.", needAuth: true };
+  // 서버리스 인스턴스 간 데이터가 유실될 수 있어(데모 스토어), 세션 정보로 폴백.
+  // (프로덕션에서 Supabase 로 전환하면 이 폴백은 사실상 필요 없음)
+  const user =
+    getUserById(session.uid) ??
+    ({
+      id: session.uid,
+      role: "student" as const,
+      schoolId: session.schoolId,
+      name: session.name ?? "학생",
+      email: "",
+      passwordHash: "",
+      createdAt: new Date().toISOString(),
+      lastActiveAt: new Date().toISOString(),
+      questionCount: 0,
+    });
 
   const title = input.title.trim();
   const body = input.body.trim();
