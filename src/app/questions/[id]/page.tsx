@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getQuestion, listAnswers, getMentorsByIds } from "@/lib/repo";
+import { getQuestion, listAnswers, getMentorsByIds, answerLinksForQuestion } from "@/lib/repo";
 import { getSession } from "@/lib/session";
 import { themeName } from "@/lib/taxonomy";
 import { formatKST } from "@/lib/format";
@@ -29,6 +29,7 @@ export default async function QuestionDetailPage({
     .filter(Boolean) as string[];
 
   const pendingMentors = targets.filter((m) => !answers.some((a) => a.mentorId === m.id));
+  const answerLinks = isAdmin ? answerLinksForQuestion(question.id) : [];
 
   return (
     <div className="container-page max-w-3xl py-10">
@@ -70,6 +71,38 @@ export default async function QuestionDetailPage({
           </p>
         )}
       </div>
+
+      {/* 관리자 전용: 멘토 답변 링크 (수동 발송·테스트용) */}
+      {isAdmin && answerLinks.length > 0 && (
+        <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50/60 p-4">
+          <p className="text-sm font-bold text-brand-500">🔗 멘토 답변 링크 (관리자 전용)</p>
+          <p className="mt-1 text-xs text-ink-muted">
+            카카오 알림톡으로 발송되는 링크입니다. 직접 눌러 답변 흐름을 테스트하거나, 알림톡이
+            안 갈 때 수동으로 전달할 수 있어요.
+          </p>
+          <ul className="mt-3 space-y-1.5">
+            {answerLinks.map((l) => (
+              <li
+                key={l.token}
+                className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-sm"
+              >
+                <span className="min-w-0 truncate">
+                  <span className="font-semibold">{l.mentorName}</span>
+                  {l.kakaoPhone && <span className="ml-2 text-xs text-ink-muted">{l.kakaoPhone}</span>}
+                  {l.used && <span className="ml-2 badge bg-emerald-50 text-emerald-700">답변완료</span>}
+                </span>
+                <Link
+                  href={`/answer/${l.token}`}
+                  className="btn-outline shrink-0 px-3 py-1.5 text-xs"
+                  target="_blank"
+                >
+                  답변 링크 열기 →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* 답변 */}
       <section className="mt-8">

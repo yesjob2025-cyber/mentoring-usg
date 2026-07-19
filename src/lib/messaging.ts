@@ -10,6 +10,9 @@ import type { Mentor, Question, Answer, User } from "./types";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const PROVIDER = (process.env.KAKAO_PROVIDER || "stub").toLowerCase();
+// 테스트용: 값이 있으면 모든 알림톡을 이 번호로 보냄(멘토/학생 무관).
+// 여러 멘토에게 질문해도 전부 이 번호로 도착 → 실발송 테스트에 사용.
+const TEST_REDIRECT = (process.env.TEST_REDIRECT_PHONE || "").replace(/[^0-9]/g, "");
 
 export interface SendResult {
   ok: boolean;
@@ -87,8 +90,10 @@ function sendViaStub(p: AlimtalkPayload): SendResult {
 }
 
 async function send(p: AlimtalkPayload): Promise<SendResult> {
-  if (PROVIDER === "aligo") return sendViaAligo(p);
-  return sendViaStub(p);
+  // 테스트 리다이렉트: 수신번호만 테스트 번호로 교체 (메시지 본문은 템플릿 일치 위해 그대로)
+  const payload: AlimtalkPayload = TEST_REDIRECT ? { ...p, to: TEST_REDIRECT } : p;
+  if (PROVIDER === "aligo") return sendViaAligo(payload);
+  return sendViaStub(payload);
 }
 
 // ── 고수준 발송 함수 ─────────────────────────────────────

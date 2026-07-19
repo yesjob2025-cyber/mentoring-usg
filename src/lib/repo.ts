@@ -247,6 +247,22 @@ export function getAnswerToken(token: string) {
   return db().answerTokens.find((t) => t.token === token);
 }
 
+/** 질문의 멘토별 답변 링크 (관리자 수동 발송·테스트용) */
+export function answerLinksForQuestion(questionId: string) {
+  return db()
+    .answerTokens.filter((t) => t.questionId === questionId)
+    .map((t) => {
+      const m = getMentorById(t.mentorId);
+      return {
+        token: t.token,
+        mentorId: t.mentorId,
+        mentorName: m?.name ?? "멘토",
+        kakaoPhone: m?.kakaoPhone,
+        used: t.used,
+      };
+    });
+}
+
 export function submitAnswerByToken(
   token: string,
   body: string
