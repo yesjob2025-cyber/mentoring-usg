@@ -126,14 +126,15 @@ create table if not exists talk_sessions (
   status text not null default 'planned'
 );
 
--- RLS: 활성화하되 정책 없음 → anon/authenticated 키로는 접근 불가.
--- 앱은 Service Role Key(서버)로만 접근하므로 정상 동작합니다.
-alter table schools        enable row level security;
-alter table users          enable row level security;
-alter table mentors        enable row level security;
-alter table questions      enable row level security;
-alter table answers        enable row level security;
-alter table answer_tokens  enable row level security;
-alter table payouts        enable row level security;
-alter table activity       enable row level security;
-alter table talk_sessions  enable row level security;
+-- RLS: 이 앱은 서버(env의 비밀 키)로만 Supabase 에 접근하고, 어떤 키도 브라우저에
+-- 노출하지 않으므로 RLS 를 끈다. (신규 sb_secret_ 키의 RLS 우회 이슈 회피 + 설정 단순화)
+-- 향후 더 엄격히 하려면 RLS 활성화 + 서비스롤 정책을 추가할 것.
+alter table schools        disable row level security;
+alter table users          disable row level security;
+alter table mentors        disable row level security;
+alter table questions      disable row level security;
+alter table answers        disable row level security;
+alter table answer_tokens  disable row level security;
+alter table payouts        disable row level security;
+alter table activity       disable row level security;
+alter table talk_sessions  disable row level security;
