@@ -1,12 +1,13 @@
 import "server-only";
+import { createHmac, randomBytes } from "node:crypto";
 import type { Mentor, Question, Answer, User } from "./types";
 
 // ─────────────────────────────────────────────────────────────
-// 메시지 발송 어댑터
-//  - provider = "stub"  : 콘솔 로그(기본, 키 없이 구동)
-//  - provider = "sms"   : 알리고 문자(SMS/LMS) — 발신번호+API키만 필요(채널/템플릿 불필요)
-//  - provider = "aligo" : 알리고 카카오 알림톡 — 채널·발신키·승인 템플릿 필요
-//  카카오 채널 인증 전에는 "sms" 로 먼저 운영하고, 승인 후 "aligo" 로 전환하면 됩니다.
+// 메시지 발송 어댑터 (provider = KAKAO_PROVIDER)
+//  - stub    : 콘솔 로그(기본, 키 없이 구동)
+//  - solapi  : 솔라피 문자(SMS/LMS) — HMAC 인증, IP 제한 없음 → 서버리스에 적합 (추천)
+//  - sms     : 알리고 문자(SMS/LMS) — 발신번호+API키, 단 발송 IP 등록 필요(서버리스 부적합)
+//  - aligo   : 알리고 카카오 알림톡 — 채널·발신키·승인 템플릿 필요
 // ─────────────────────────────────────────────────────────────
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -79,6 +80,63 @@ async function sendViaAligo(p: AlimtalkPayload): Promise<SendResult> {
   }
 }
 
+async function sendViaSolapi(p: AlimtalkPayload): Promise<SendResult> {
+  const apiKey = process.env.SOLAPI_API_KEY;
+  const apiSecret = process.env.SOLAPI_API_SECRET;
+  const from = process.env.SOLAPI_SENDER || process.env.ALIGO_SENDER;
+  if (!apiKey || !apiSecret || !from) {
+    return {
+      ok: false,
+      provider: "solapi",
+      to: p.to,
+      detail: "솔라피 환경변수(SOLAPI_API_KEY/SOLAPI_API_SECRET/SOLAPI_SENDER) 누락",
+    };
+  }
+  // 링크 버튼은 문자 본문 하단에 URL 로 첨부
+  const text = p.button ? `${p.message}\n\n▶ ${p.button.name}\n${p.button.url}` : p.message;
+
+  // HMAC-SHA256 인증 (IP 제한 없음)
+  const date = new Date().toISOString();
+  const salt = randomBytes(32).toString("hex");
+  const signature = createHmac("sha256", apiSecret).update(date + salt).digest("hex");
+  const authorization = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
+
+  const body = {
+    message: {
+      to: p.to.replace(/[^0-9]/g, ""),
+      from: from.replace(/[^0-9]/g, ""),
+      text,
+      type: "LMS", // 링크 포함 장문 → LMS
+      subject: p.subject.slice(0, 40),
+    },
+  };
+
+  try {
+    const res = await fetch("https://api.solapi.com/messages/v4/send", {
+      method: "POST",
+      headers: { Authorization: authorization, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json()) as {
+      statusCode?: string;
+      statusMessage?: string;
+      errorMessage?: string;
+    };
+    // 솔라피: statusCode "2000" = 정상 접수
+    if (res.ok && json.statusCode === "2000") {
+      return { ok: true, provider: "solapi", to: p.to, detail: json.statusMessage };
+    }
+    return {
+      ok: false,
+      provider: "solapi",
+      to: p.to,
+      detail: json.errorMessage || json.statusMessage || `발송 실패(${res.status})`,
+    };
+  } catch (e) {
+    return { ok: false, provider: "solapi", to: p.to, detail: (e as Error).message };
+  }
+}
+
 async function sendViaAligoSms(p: AlimtalkPayload): Promise<SendResult> {
   const key = process.env.ALIGO_API_KEY || process.env.KAKAO_API_KEY;
   const userId = process.env.ALIGO_USER_ID;
@@ -132,6 +190,7 @@ function sendViaStub(p: AlimtalkPayload): SendResult {
 async function send(p: AlimtalkPayload): Promise<SendResult> {
   // 테스트 리다이렉트: 수신번호만 테스트 번호로 교체 (알림톡 템플릿 일치 위해 본문은 그대로)
   const payload: AlimtalkPayload = TEST_REDIRECT ? { ...p, to: TEST_REDIRECT } : p;
+  if (PROVIDER === "solapi") return sendViaSolapi(payload);
   if (PROVIDER === "aligo" || PROVIDER === "alimtalk") return sendViaAligo(payload);
   if (PROVIDER === "sms" || PROVIDER === "aligo_sms") return sendViaAligoSms(payload);
   return sendViaStub(payload);
@@ -184,7 +243,9 @@ export async function notifyStudentNewAnswer(
 export const messagingProvider = PROVIDER;
 
 /** 진단용 테스트 발송 — 현재 provider 로 간단한 메시지를 보내고 원본 결과 반환 */
-export async function sendTestMessage(to: string): Promise<SendResult & { env: Record<string, boolean> }> {
+export async function sendTestMessage(
+  to: string
+): Promise<SendResult & { env: Record<string, boolean | string> }> {
   const result = await send({
     to,
     recvName: "테스트",
@@ -196,11 +257,12 @@ export async function sendTestMessage(to: string): Promise<SendResult & { env: R
   return {
     ...result,
     env: {
-      KAKAO_PROVIDER: !!process.env.KAKAO_PROVIDER,
+      KAKAO_PROVIDER: process.env.KAKAO_PROVIDER || "(unset)",
+      SOLAPI_API_KEY: !!process.env.SOLAPI_API_KEY,
+      SOLAPI_API_SECRET: !!process.env.SOLAPI_API_SECRET,
+      SOLAPI_SENDER: !!(process.env.SOLAPI_SENDER || process.env.ALIGO_SENDER),
       ALIGO_API_KEY: !!process.env.ALIGO_API_KEY,
-      ALIGO_USER_ID: !!process.env.ALIGO_USER_ID,
       ALIGO_SENDER: !!process.env.ALIGO_SENDER,
-      ALIGO_TESTMODE_isY: (process.env.ALIGO_TESTMODE || "N").toUpperCase() === "Y",
       TEST_REDIRECT_PHONE: !!process.env.TEST_REDIRECT_PHONE,
     },
   };
