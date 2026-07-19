@@ -25,7 +25,7 @@ export default function HomePage() {
               동시에.
             </h1>
             <p className="mt-5 max-w-md text-lg leading-relaxed text-ink-soft">
-              산업·직무·기업·전공별 현직자 멘토를 추천받고, 한 번에 여러 멘토에게 질문하세요.
+              산업·직무·유형·전공별 현직자 멘토를 추천받고, 한 번에 여러 멘토에게 질문하세요.
               현직자의 다양한 관점을 카카오톡으로 편하게 받아봅니다.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -89,7 +89,7 @@ export default function HomePage() {
           <ProgramCard
             tag="① 실시간 Q&A"
             title="현직자에게 바로 묻는 실시간 Q&A"
-            desc="산업·직무·기업·유형·전공 5가지 테마로 멘토를 추천받고, 개별 또는 여러 멘토에게 한 번에 질문하세요. 답변은 카카오톡으로 도착합니다."
+            desc="산업·직무·유형·전공 4가지 테마로 멘토를 추천받고, 개별 또는 여러 멘토에게 한 번에 질문하세요. 답변은 카카오톡으로 도착합니다."
             href="/qna"
             cta="질문 시작하기"
             highlight
@@ -110,7 +110,7 @@ export default function HomePage() {
         <p className="mt-1 text-ink-muted">유형 확인부터 답변 게시까지 5단계</p>
         <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {[
-            { n: "1", t: "유형 확인", d: "산업·직무·기업·전공 선택" },
+            { n: "1", t: "유형 확인", d: "산업·직무·유형·전공 선택" },
             { n: "2", t: "멘토 추천", d: "테마에 맞는 멘토 리스트" },
             { n: "3", t: "질문 등록", d: "개별 또는 여러 멘토에게" },
             { n: "4", t: "멘토 답변", d: "카톡 알림 → 답변 작성" },
@@ -182,7 +182,7 @@ export default function HomePage() {
         <div className="rounded-2xl2 bg-ink px-8 py-12 text-center text-cream-50">
           <h2 className="text-2xl font-extrabold sm:text-3xl">지금 바로 현직자에게 물어보세요</h2>
           <p className="mx-auto mt-3 max-w-xl text-cream-200/80">
-            학교 접속코드로 가입하고, 관심 산업·직무·기업의 현직자 멘토에게 질문을 시작하세요.
+            학교 접속코드로 가입하고, 관심 산업·직무의 현직자 멘토에게 질문을 시작하세요.
           </p>
           <div className="mt-7 flex justify-center gap-3">
             <Link href="/signup" className="btn-brand">

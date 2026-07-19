@@ -15,7 +15,7 @@ export default function AdminLoginPage() {
           </p>
           <AdminLoginForm />
           <p className="mt-6 text-center text-xs text-ink-muted">
-            데모 관리자: pnu-admin / admin1234
+            데모 관리자: pknu-admin / Pknu@2025!
           </p>
         </div>
       </div>

@@ -25,7 +25,7 @@ export function LoginForm() {
       )}
       <SubmitButton className="btn-primary w-full">로그인</SubmitButton>
       <p className="text-center text-xs text-ink-muted">
-        데모 계정: student1@pnu.ac.kr / test1234
+        데모 계정: student1@pknu.ac.kr / test1234
       </p>
     </form>
   );

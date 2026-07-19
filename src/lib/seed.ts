@@ -15,15 +15,21 @@ import { industries, jobs } from "./taxonomy";
 
 const NOW = "2026-07-19T09:00:00.000Z";
 
-// ── 학교 + 접속 코드 ─────────────────────────────────────
-const SCHOOL_DEFS: Omit<School, "adminPasswordHash" | "createdAt">[] = [
-  { id: "sch_pnu", name: "부산대학교", code: "PNU2025", region: "부산", adminUsername: "pnu-admin" },
-  { id: "sch_pknu", name: "부경대학교", code: "PKNU2025", region: "부산", adminUsername: "pknu-admin" },
-  { id: "sch_dau", name: "동아대학교", code: "DAU2025", region: "부산", adminUsername: "dau-admin" },
-  { id: "sch_ksu", name: "경성대학교", code: "KSU2025", region: "부산", adminUsername: "ksu-admin" },
-  { id: "sch_deu", name: "동의대학교", code: "DEU2025", region: "부산", adminUsername: "deu-admin" },
-  { id: "sch_unu", name: "울산대학교", code: "UOU2025", region: "울산", adminUsername: "uou-admin" },
-  { id: "sch_gnu", name: "경상국립대학교", code: "GNU2025", region: "경남", adminUsername: "gnu-admin" },
+// ── 학교 + 접속 코드 + 관리자 계정 (참여 12개교) ──────────
+type SchoolDef = Omit<School, "adminPasswordHash" | "createdAt"> & { adminPassword: string };
+const SCHOOL_DEFS: SchoolDef[] = [
+  { id: "sch_ksu", name: "경성대학교", code: "KSU2025", region: "부산", adminUsername: "ksu-admin", adminPassword: "Ksu@2025!" },
+  { id: "sch_kosin", name: "고신대학교", code: "KOSIN2025", region: "부산", adminUsername: "kosin-admin", adminPassword: "Kosin@2025!" },
+  { id: "sch_tu", name: "동명대학교", code: "TU2025", region: "부산", adminUsername: "tu-admin", adminPassword: "Tu@2025!" },
+  { id: "sch_dsu", name: "동서대학교", code: "DSU2025", region: "부산", adminUsername: "dsu-admin", adminPassword: "Dsu@2025!" },
+  { id: "sch_dau", name: "동아대학교", code: "DAU2025", region: "부산", adminUsername: "dau-admin", adminPassword: "Dau@2025!" },
+  { id: "sch_deu", name: "동의대학교", code: "DEU2025", region: "부산", adminUsername: "deu-admin", adminPassword: "Deu@2025!" },
+  { id: "sch_pknu", name: "국립부경대학교", code: "PKNU2025", region: "부산", adminUsername: "pknu-admin", adminPassword: "Pknu@2025!" },
+  { id: "sch_bufs", name: "부산외국어대학교", code: "BUFS2025", region: "부산", adminUsername: "bufs-admin", adminPassword: "Bufs@2025!" },
+  { id: "sch_silla", name: "신라대학교", code: "SILLA2025", region: "부산", adminUsername: "silla-admin", adminPassword: "Silla@2025!" },
+  { id: "sch_ysu", name: "영산대학교", code: "YSU2025", region: "경남", adminUsername: "ysu-admin", adminPassword: "Ysu@2025!" },
+  { id: "sch_uou", name: "울산대학교", code: "UOU2025", region: "울산", adminUsername: "uou-admin", adminPassword: "Uou@2025!" },
+  { id: "sch_inje", name: "인제대학교", code: "INJE2025", region: "경남", adminUsername: "inje-admin", adminPassword: "Inje@2025!" },
 ];
 
 // ── 토크콘서트 일정 (제안서: 8/24~9/3, 9일 × 5회 = 45회) ──
@@ -63,9 +69,9 @@ function buildTalkSessions(): TalkSession[] {
 export function buildSeed(): Database {
   const mentors = buildMentors();
 
-  const schools: School[] = SCHOOL_DEFS.map((s) => ({
+  const schools: School[] = SCHOOL_DEFS.map(({ adminPassword, ...s }) => ({
     ...s,
-    adminPasswordHash: hashPassword("admin1234"),
+    adminPasswordHash: hashPassword(adminPassword),
     createdAt: NOW,
   }));
 
@@ -74,12 +80,12 @@ export function buildSeed(): Database {
     {
       id: "usr_demo1",
       role: "student",
-      schoolId: "sch_pnu",
+      schoolId: "sch_pknu",
       name: "김민준",
       studentNo: "202012345",
       department: "기계공학과",
       phone: "010-1234-5678",
-      email: "student1@pnu.ac.kr",
+      email: "student1@pknu.ac.kr",
       passwordHash: hashPassword("test1234"),
       createdAt: NOW,
       lastActiveAt: NOW,
@@ -88,12 +94,12 @@ export function buildSeed(): Database {
     {
       id: "usr_demo2",
       role: "student",
-      schoolId: "sch_pnu",
+      schoolId: "sch_pknu",
       name: "이서연",
       studentNo: "202154321",
       department: "경영학과",
       phone: "010-2222-3333",
-      email: "student2@pnu.ac.kr",
+      email: "student2@pknu.ac.kr",
       passwordHash: hashPassword("test1234"),
       createdAt: NOW,
       lastActiveAt: NOW,
@@ -114,7 +120,7 @@ export function buildSeed(): Database {
       id: "q_demo1",
       authorUserId: "usr_demo1",
       authorName: "김민준",
-      schoolId: "sch_pnu",
+      schoolId: "sch_pknu",
       scope: "broadcast",
       category: "job",
       themeRefs: { job: jobs.find((j) => j.name === "SW개발")!.id },
@@ -130,7 +136,7 @@ export function buildSeed(): Database {
       id: "q_demo2",
       authorUserId: "usr_demo2",
       authorName: "이서연",
-      schoolId: "sch_pnu",
+      schoolId: "sch_pknu",
       scope: "individual",
       category: "type",
       themeRefs: { type: "type-1" },
@@ -184,10 +190,10 @@ export function buildSeed(): Database {
   }
 
   const activity: ActivityEvent[] = [
-    { id: "ev1", schoolId: "sch_pnu", userId: "usr_demo1", type: "signup", at: NOW },
-    { id: "ev2", schoolId: "sch_pnu", userId: "usr_demo2", type: "signup", at: NOW },
-    { id: "ev3", schoolId: "sch_pnu", userId: "usr_demo1", type: "question", at: "2026-07-15T02:10:00.000Z" },
-    { id: "ev4", schoolId: "sch_pnu", userId: "usr_demo2", type: "question", at: "2026-07-17T05:40:00.000Z" },
+    { id: "ev1", schoolId: "sch_pknu", userId: "usr_demo1", type: "signup", at: NOW },
+    { id: "ev2", schoolId: "sch_pknu", userId: "usr_demo2", type: "signup", at: NOW },
+    { id: "ev3", schoolId: "sch_pknu", userId: "usr_demo1", type: "question", at: "2026-07-15T02:10:00.000Z" },
+    { id: "ev4", schoolId: "sch_pknu", userId: "usr_demo2", type: "question", at: "2026-07-17T05:40:00.000Z" },
   ];
 
   void semiIndustry;

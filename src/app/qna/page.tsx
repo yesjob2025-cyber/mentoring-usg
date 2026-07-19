@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { industries, jobs, companyTypes, majors, companies, themeMeta } from "@/lib/taxonomy";
+import { industries, jobs, companyTypes, majors, themeMeta } from "@/lib/taxonomy";
 import { getSession } from "@/lib/session";
 import { recommendMentors } from "@/lib/repo";
 import { toPublicMentor } from "@/lib/view";
@@ -7,7 +7,7 @@ import { QnaExplorer } from "./qna-explorer";
 
 export const metadata: Metadata = {
   title: "실시간 Q&A · 멘토 추천",
-  description: "산업·직무·기업·유형·전공별 현직자 멘토를 추천받고 질문하세요.",
+  description: "산업·직무·유형·전공별 현직자 멘토를 추천받고 질문하세요.",
 };
 
 export default async function QnaPage() {
@@ -26,10 +26,10 @@ export default async function QnaPage() {
       <div className="max-w-2xl">
         <span className="chip-brand">실시간 Q&A</span>
         <h1 className="mt-3 text-3xl font-black tracking-tight">
-          산업·직무·기업·전공으로 멘토를 찾아 질문하세요
+          산업·직무·유형·전공으로 멘토를 찾아 질문하세요
         </h1>
         <p className="mt-3 text-ink-soft">
-          5가지 테마를 선택하면 답변 가능한 멘토가 추천됩니다. 한 명에게 개별 질문하거나, 여러
+          4가지 테마를 선택하면 답변 가능한 멘토가 추천됩니다. 한 명에게 개별 질문하거나, 여러
           멘토를 선택해 한 번에 질문할 수 있어요. 질문은 멘토에게 카카오톡으로 전달됩니다.
         </p>
       </div>
@@ -42,7 +42,6 @@ export default async function QnaPage() {
           job: jobs,
           type: companyTypes,
           major: majors,
-          company: companies,
         }}
         themeMeta={themeMeta}
       />

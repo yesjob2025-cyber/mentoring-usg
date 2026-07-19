@@ -17,7 +17,7 @@ export function SignupForm() {
           name="code"
           required
           className="field-input font-mono uppercase tracking-wider"
-          placeholder="예: PNU2025"
+          placeholder="예: PKNU2025"
         />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

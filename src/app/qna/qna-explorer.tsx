@@ -6,20 +6,22 @@ import type { ThemeItem, ThemeKind, QuestionThemeRefs } from "@/lib/types";
 import type { RecommendedMentor } from "@/lib/view";
 import { recommendAction, askAction } from "./actions";
 
-type Kind = ThemeKind;
-const KIND_ORDER: Kind[] = ["industry", "job", "company", "type", "major"];
+// 선택 가능한 분류 차원 (기업 제외 — 산업/직무/유형/전공)
+type SelKind = "industry" | "job" | "type" | "major";
+const KIND_ORDER: SelKind[] = ["industry", "job", "type", "major"];
 
 interface Props {
   isStudent: boolean;
   initial: RecommendedMentor[];
-  taxonomy: Record<Kind, ThemeItem[]>;
-  themeMeta: Record<Kind, { label: string; short: string; desc: string; icon: string }>;
+  taxonomy: Record<SelKind, ThemeItem[]>;
+  themeMeta: Record<ThemeKind, { label: string; short: string; desc: string; icon: string }>;
 }
 
 export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) {
   const [refs, setRefs] = useState<QuestionThemeRefs>({});
   const [recs, setRecs] = useState<RecommendedMentor[]>(initial);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [openKind, setOpenKind] = useState<SelKind | null>(null);
   const [pending, startTransition] = useTransition();
   const composeRef = useRef<HTMLDivElement>(null);
 
@@ -39,14 +41,22 @@ export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) 
     });
   }
 
-  function toggleTheme(kind: Kind, id: string) {
+  function selectTheme(kind: SelKind, id: string) {
     const next = { ...refs };
     if (next[kind] === id) delete next[kind];
     else next[kind] = id;
+    setOpenKind(null);
+    updateRefs(next);
+  }
+
+  function clearTheme(kind: SelKind) {
+    const next = { ...refs };
+    delete next[kind];
     updateRefs(next);
   }
 
   function resetThemes() {
+    setOpenKind(null);
     updateRefs({});
   }
 
@@ -71,46 +81,100 @@ export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) 
 
   return (
     <div className="mt-8">
-      {/* 테마 선택 */}
-      <div className="card p-5 sm:p-6">
+      {/* 테마 선택 (드롭다운) — z-30 으로 아래 추천목록 위에 패널이 뜨도록 */}
+      <div className="card relative z-30 p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold">테마 선택</h2>
+          <div>
+            <h2 className="text-lg font-extrabold">테마 선택</h2>
+            <p className="text-sm text-ink-muted">
+              항목을 눌러 하나씩 선택하세요. 산업·직무·유형·전공 중 원하는 만큼만 지정하면 됩니다.
+            </p>
+          </div>
           {selectedCount > 0 && (
             <button onClick={resetThemes} className="text-sm font-semibold text-ink-muted hover:text-ink">
               초기화 ✕
             </button>
           )}
         </div>
-        <div className="space-y-4">
-          {KIND_ORDER.map((kind) => (
-            <div key={kind}>
-              <div className="mb-2 flex items-center gap-2">
-                <span>{themeMeta[kind].icon}</span>
-                <span className="text-sm font-bold">{themeMeta[kind].label}</span>
-                <span className="hidden text-xs text-ink-muted sm:inline">
-                  {themeMeta[kind].desc}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {taxonomy[kind].map((it) => {
-                  const active = refs[kind] === it.id;
-                  return (
-                    <button
-                      key={it.id}
-                      onClick={() => toggleTheme(kind, it.id)}
-                      className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                        active
-                          ? "border-ink bg-ink text-cream-50"
-                          : "border-ink-line bg-white text-ink-soft hover:border-brand-300 hover:bg-brand-50"
-                      }`}
+
+        {/* 바깥 클릭 시 닫기 */}
+        {openKind && (
+          <button
+            aria-label="닫기"
+            className="fixed inset-0 z-10 cursor-default"
+            onClick={() => setOpenKind(null)}
+          />
+        )}
+
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {KIND_ORDER.map((kind) => {
+            const meta = themeMeta[kind];
+            const selId = refs[kind];
+            const isOpen = openKind === kind;
+            return (
+              <div key={kind} className="relative z-20">
+                <button
+                  type="button"
+                  onClick={() => setOpenKind(isOpen ? null : kind)}
+                  className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-left text-sm transition ${
+                    selId
+                      ? "border-brand-400 bg-brand-50"
+                      : "border-ink-line bg-white hover:border-brand-300"
+                  }`}
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span>{meta.icon}</span>
+                    {selId ? (
+                      <span className="truncate font-semibold text-ink">{nameOf.get(selId)}</span>
+                    ) : (
+                      <span className="truncate text-ink-muted">{meta.label} 선택</span>
+                    )}
+                  </span>
+                  {selId ? (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`${meta.label} 선택 해제`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearTheme(kind);
+                      }}
+                      className="shrink-0 rounded px-1 text-ink-muted hover:text-ink"
                     >
-                      {it.name}
-                    </button>
-                  );
-                })}
+                      ✕
+                    </span>
+                  ) : (
+                    <span className={`shrink-0 text-ink-muted transition ${isOpen ? "rotate-180" : ""}`}>
+                      ▾
+                    </span>
+                  )}
+                </button>
+
+                {isOpen && (
+                  <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-72 overflow-y-auto rounded-xl border border-ink-line bg-white p-1.5 shadow-pop">
+                    <p className="px-2 py-1 text-xs text-ink-muted">{meta.desc}</p>
+                    {taxonomy[kind].map((it) => {
+                      const active = refs[kind] === it.id;
+                      return (
+                        <button
+                          key={it.id}
+                          type="button"
+                          onClick={() => selectTheme(kind, it.id)}
+                          className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                            active
+                              ? "bg-ink text-cream-50"
+                              : "text-ink-soft hover:bg-brand-50 hover:text-ink"
+                          }`}
+                        >
+                          {it.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -173,11 +237,13 @@ export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) 
                           {mentor.company} · {mentor.title} · {mentor.years}년차
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
-                          {matched.map((k) => (
-                            <span key={k} className="badge bg-emerald-50 text-emerald-700">
-                              {themeMeta[k].short} 매칭
-                            </span>
-                          ))}
+                          {matched
+                            .filter((k) => k !== "company")
+                            .map((k) => (
+                              <span key={k} className="badge bg-emerald-50 text-emerald-700">
+                                {themeMeta[k].short} 매칭
+                              </span>
+                            ))}
                           {mentor.mentoringAreas.slice(0, 2).map((a) => (
                             <span key={a} className="badge bg-ink/5 text-ink-soft">
                               {a}
