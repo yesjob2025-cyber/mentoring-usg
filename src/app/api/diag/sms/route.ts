@@ -17,5 +17,5 @@ export async function GET(req: Request) {
   if (!to) return NextResponse.json({ error: "to 파라미터 또는 TEST_REDIRECT_PHONE 필요" }, { status: 400 });
 
   const result = await sendTestMessage(to);
-  return NextResponse.json({ provider: messagingProvider, to, ...result });
+  return NextResponse.json({ configuredProvider: messagingProvider, requestedTo: to, ...result });
 }
