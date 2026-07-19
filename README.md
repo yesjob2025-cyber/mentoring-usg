@@ -121,6 +121,21 @@ KAKAO_TPL_NEW_ANSWER=...    # 승인된 템플릿 코드(학생용)
 
 ---
 
+## 배포 (Vercel · 데모용)
+
+코드가 GitHub에 있으므로 Vercel에서 바로 배포할 수 있습니다.
+
+1. https://vercel.com 에서 **GitHub로 로그인**
+2. **Add New → Project** → `yesjob2025-cyber/mentoring-usg` **Import**
+3. Branch를 `claude/mentoring-homepage-setup-udana7` 로 선택 (또는 이 브랜치를 main으로 머지)
+4. **Environment Variables** 에 최소 `SESSION_SECRET`(임의 32자 이상) 입력
+   (카톡 실발송하려면 `KAKAO_PROVIDER=aligo` + 알리고 키들도 함께)
+5. **Deploy** → 몇 분 뒤 `https://<프로젝트>.vercel.app` 주소 생성
+
+> ⚠️ **데이터 영속성 주의**: 서버리스에서는 임시 저장소(`/tmp`)를 쓰므로 배포·재시작 시
+> 가입/질문 데이터가 초기화됩니다(시드 데이터로 리셋). 화면·플로우 확인용 데모로는 충분하지만,
+> 실제 운영(데이터 유지, 다중 사용자)은 위 **Supabase 전환**이 필요합니다.
+
 ## 기술 스택
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS · jose(세션) ·
 데이터: 로컬 JSON 스토어(데모) → Supabase(프로덕션)
