@@ -4,9 +4,9 @@ import { industries, jobs, companies } from "@/lib/taxonomy";
 import { toPublicMentor } from "@/lib/view";
 import { MentorTagBadges } from "@/components/mentor-badges";
 
-export default function HomePage() {
-  const mentorCount = listMentors().length;
-  const featured = featuredMentors(6).map(toPublicMentor);
+export default async function HomePage() {
+  const mentorCount = (await listMentors()).length;
+  const featured = (await featuredMentors(6)).map(toPublicMentor);
 
   return (
     <>

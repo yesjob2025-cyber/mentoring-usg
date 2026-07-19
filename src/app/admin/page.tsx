@@ -18,8 +18,10 @@ export default async function AdminDashboard() {
   const session = await getSession();
   if (!session || session.role !== "admin") redirect("/admin/login");
 
-  const stats = schoolStats(session.schoolId);
-  const payouts = schoolPayouts(session.schoolId);
+  const [stats, payouts] = await Promise.all([
+    schoolStats(session.schoolId),
+    schoolPayouts(session.schoolId),
+  ]);
   const school = stats.school;
   const answerRate =
     stats.totalQuestions > 0

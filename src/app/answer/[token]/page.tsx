@@ -13,13 +13,12 @@ export default async function AnswerPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const t = getAnswerToken(token);
+  const t = await getAnswerToken(token);
 
   if (!t) {
     return <InvalidNotice message="유효하지 않은 답변 링크입니다. 링크를 다시 확인해 주세요." />;
   }
-  const question = getQuestion(t.questionId);
-  const mentor = getMentorById(t.mentorId);
+  const [question, mentor] = await Promise.all([getQuestion(t.questionId), getMentorById(t.mentorId)]);
   if (!question || !mentor) {
     return <InvalidNotice message="질문 정보를 찾을 수 없습니다." />;
   }

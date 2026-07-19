@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { listQuestionsByUser, listAnswers, getUserById } from "@/lib/repo";
+import { listQuestionsByUser, answerCountByQuestion, getUserById } from "@/lib/repo";
 import { formatKST } from "@/lib/format";
 
 export const metadata: Metadata = { title: "내 질문" };
@@ -10,8 +10,11 @@ export const metadata: Metadata = { title: "내 질문" };
 export default async function MyPage() {
   const session = await getSession();
   if (!session || session.role !== "student" || !session.uid) redirect("/login");
-  const user = getUserById(session.uid!);
-  const questions = listQuestionsByUser(session.uid!);
+  const [user, questions, answerCounts] = await Promise.all([
+    getUserById(session.uid!),
+    listQuestionsByUser(session.uid!),
+    answerCountByQuestion(),
+  ]);
 
   return (
     <div className="container-page max-w-3xl py-10">
@@ -37,7 +40,7 @@ export default async function MyPage() {
           </li>
         )}
         {questions.map((q) => {
-          const answers = listAnswers(q.id);
+          const answerN = answerCounts.get(q.id) ?? 0;
           return (
             <li key={q.id}>
               <Link href={`/questions/${q.id}`} className="card block p-5 transition hover:shadow-pop">
@@ -47,10 +50,10 @@ export default async function MyPage() {
                   </span>
                   <span
                     className={`badge ${
-                      answers.length > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                      answerN > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                     }`}
                   >
-                    {answers.length > 0 ? `답변 ${answers.length}` : "답변 대기"}
+                    {answerN > 0 ? `답변 ${answerN}` : "답변 대기"}
                   </span>
                   {!q.isPublic && <span className="badge bg-ink/5 text-ink-muted">비공개</span>}
                 </div>

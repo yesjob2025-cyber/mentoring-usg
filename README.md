@@ -107,13 +107,28 @@ KAKAO_TPL_NEW_ANSWER=...    # 승인된 템플릿 코드(학생용)
   본문/버튼을 승인 템플릿과 일치시키세요. (연동 코드: `sendViaAligo`)
 - 멘토 수신 번호는 현재 마스킹된 가상값입니다. 실제 운영 시 멘토 연락처를 안전하게 저장하세요.
 
-### 2) 데이터 백엔드 (Supabase)
-현재는 데모용 JSON 스토어(`src/lib/store.ts`)를 사용합니다. 프로덕션은 Supabase(Postgres)로
-교체합니다. `src/lib/repo.ts` 의 함수 구현만 Supabase 클라이언트로 바꾸면 페이지/액션은 그대로
-동작하도록 계층이 분리되어 있습니다. (`types.ts` 의 엔터티가 곧 테이블 스키마)
+### 2) 데이터 백엔드 (Supabase) — 구현 완료, 환경변수만 설정하면 전환
+데이터 접근은 `src/lib/data.ts` 한 곳에서 백엔드를 자동 선택합니다.
+- `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` 가 있으면 → **Supabase(PostgreSQL, 영구 저장)**
+- 없으면 → 로컬 JSON 스토어(데모)
 
-> ⚠️ Vercel 등 서버리스 환경은 파일시스템이 휘발성/읽기전용이라 JSON 스토어는 데모 전용입니다.
-> 배포 전 반드시 Supabase 로 전환하세요.
+**전환 절차**
+1. [supabase.com](https://supabase.com) 에서 프로젝트 생성(무료)
+2. **SQL Editor** 에 `supabase/schema.sql` 붙여넣고 실행 (테이블 생성)
+3. Vercel 환경변수 추가 후 재배포:
+   ```
+   SUPABASE_URL=https://xxxx.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=eyJ...        # Project Settings → API → service_role
+   SEED_SECRET=아무_긴_임의문자열           # 시드 엔드포인트 보호용
+   ```
+4. 시드 채우기(1회): `https://mentoring-usg.kr/api/seed?secret=<SEED_SECRET>` 접속
+   → 학교 12개, 멘토 566명, 토크콘서트 45회 등 자동 삽입 (이미 있으면 skip, `&force=1` 로 강제)
+
+> ⚠️ Vercel 서버리스는 파일시스템이 휘발성이라 JSON 스토어로는 데이터가 유지되지 않습니다.
+> 실제 운영은 위 Supabase 전환이 필수입니다.
+
+> 참고: `service_role` 키는 서버에서만 사용되며(클라이언트 노출 없음), 스키마는 RLS 활성화 +
+> 정책 없음이라 anon 키로는 접근이 차단됩니다.
 
 ### 3) Zoom (토크콘서트)
 `TalkSession.zoomUrl` 에 회차별 링크를 채우고, 섭외 확정 시 `mentorName/company/status` 를

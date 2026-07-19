@@ -15,7 +15,7 @@ export default async function QnaPage() {
   const isStudent = session?.role === "student";
 
   // 초기 추천(선택 없음): 참여도 상위 멘토
-  const initial = recommendMentors({}, 24).map((r) => ({
+  const initial = (await recommendMentors({}, 24)).map((r) => ({
     mentor: toPublicMentor(r.mentor),
     score: r.score,
     matched: r.matched,

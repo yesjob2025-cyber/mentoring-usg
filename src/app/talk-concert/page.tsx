@@ -20,8 +20,8 @@ function weekday(dateStr: string) {
   return ["일", "월", "화", "수", "목", "금", "토"][new Date(dateStr).getDay()];
 }
 
-export default function TalkConcertPage() {
-  const sessions = listTalkSessions();
+export default async function TalkConcertPage() {
+  const sessions = await listTalkSessions();
   const byDate = new Map<string, TalkSession[]>();
   for (const s of sessions) {
     const arr = byDate.get(s.date) ?? [];

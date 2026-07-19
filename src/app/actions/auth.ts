@@ -26,10 +26,10 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
   }
   if (password.length < 6) return { error: "비밀번호는 6자 이상이어야 합니다." };
 
-  const school = getSchoolByCode(code);
+  const school = await getSchoolByCode(code);
   if (!school) return { error: "유효하지 않은 학교 접속코드입니다. 담당 부서에 문의하세요." };
 
-  const res = createStudent({
+  const res = await createStudent({
     schoolId: school.id,
     name,
     email,
@@ -52,9 +52,9 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
 export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
-  const user = authenticateStudent(email, password);
+  const user = await authenticateStudent(email, password);
   if (!user) return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
-  touchActivity(user.id);
+  await touchActivity(user.id);
   await createSession({ role: "student", uid: user.id, schoolId: user.schoolId, name: user.name });
   redirect("/qna");
 }
@@ -62,7 +62,7 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
 export async function adminLoginAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const username = String(formData.get("username") || "").trim();
   const password = String(formData.get("password") || "");
-  const school = verifyAdmin(username, password);
+  const school = await verifyAdmin(username, password);
   if (!school) return { error: "관리자 계정 정보가 올바르지 않습니다." };
   await createSession({ role: "admin", schoolId: school.id, name: `${school.name} 관리자` });
   redirect("/admin");

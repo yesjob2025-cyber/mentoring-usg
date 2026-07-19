@@ -11,6 +11,7 @@
     "reset-db": "node scripts/reset-db.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.110.7",
     "jose": "^5.9.6",
     "next": "15.5.20",
     "react": "^19.0.0",

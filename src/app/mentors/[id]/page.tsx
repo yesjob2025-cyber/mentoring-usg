@@ -11,7 +11,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const m = getMentorById(id);
+  const m = await getMentorById(id);
   return { title: m ? `${m.name} 멘토` : "멘토" };
 }
 
@@ -21,10 +21,10 @@ export default async function MentorPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const raw = getMentorById(id);
+  const raw = await getMentorById(id);
   if (!raw) notFound();
   const m = toPublicMentor(raw);
-  const questions = listPublicQuestions({ mentorId: id }).slice(0, 5);
+  const questions = (await listPublicQuestions({ mentorId: id })).slice(0, 5);
 
   return (
     <div className="container-page max-w-3xl py-10">

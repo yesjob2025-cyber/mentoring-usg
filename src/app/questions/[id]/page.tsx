@@ -16,20 +16,22 @@ export default async function QuestionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const question = getQuestion(id);
+  const question = await getQuestion(id);
   if (!question) notFound();
 
   const session = await getSession();
   const isAdmin = session?.role === "admin";
-  const answers = listAnswers(question.id);
-  const targets = getMentorsByIds(question.targetMentorIds);
+  const [answers, targets] = await Promise.all([
+    listAnswers(question.id),
+    getMentorsByIds(question.targetMentorIds),
+  ]);
   const chips = Object.entries(question.themeRefs)
     .filter(([, v]) => !!v)
     .map(([, v]) => themeName(v as string))
     .filter(Boolean) as string[];
 
   const pendingMentors = targets.filter((m) => !answers.some((a) => a.mentorId === m.id));
-  const answerLinks = isAdmin ? answerLinksForQuestion(question.id) : [];
+  const answerLinks = isAdmin ? await answerLinksForQuestion(question.id) : [];
 
   return (
     <div className="container-page max-w-3xl py-10">

@@ -12,7 +12,7 @@ import { notifyMentorNewQuestion } from "@/lib/messaging";
 import type { QuestionThemeRefs, ThemeKind } from "@/lib/types";
 
 export async function recommendAction(refs: QuestionThemeRefs): Promise<RecommendedMentor[]> {
-  const list = recommendMentors(refs, 30);
+  const list = await recommendMentors(refs, 30);
   return list.map((r) => ({
     mentor: toPublicMentor(r.mentor),
     score: r.score,
@@ -44,7 +44,7 @@ export async function askAction(input: {
   // 서버리스 인스턴스 간 데이터가 유실될 수 있어(데모 스토어), 세션 정보로 폴백.
   // (프로덕션에서 Supabase 로 전환하면 이 폴백은 사실상 필요 없음)
   const user =
-    getUserById(session.uid) ??
+    (await getUserById(session.uid)) ??
     ({
       id: session.uid,
       role: "student" as const,
@@ -62,11 +62,11 @@ export async function askAction(input: {
   if (title.length < 5) return { ok: false, error: "질문 제목을 5자 이상 입력해 주세요." };
   if (body.length < 10) return { ok: false, error: "질문 내용을 10자 이상 입력해 주세요." };
 
-  const mentors = getMentorsByIds(input.targetMentorIds);
+  const mentors = await getMentorsByIds(input.targetMentorIds);
   if (mentors.length === 0) return { ok: false, error: "질문할 멘토를 1명 이상 선택해 주세요." };
 
   const scope = mentors.length > 1 ? "broadcast" : "individual";
-  const { question, tokens } = createQuestion({
+  const { question, tokens } = await createQuestion({
     author: user,
     scope,
     category: pickCategory(input.refs),

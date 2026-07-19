@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listPublicQuestions, listAnswers, topQuestions } from "@/lib/repo";
+import { listPublicQuestions, answerCountByQuestion, topQuestions } from "@/lib/repo";
 import { themeName, themeMeta } from "@/lib/taxonomy";
 import { formatKSTDate } from "@/lib/format";
 import type { ThemeKind } from "@/lib/types";
@@ -14,7 +14,6 @@ const TABS: { key: string; label: string }[] = [
   { key: "all", label: "전체" },
   { key: "industry", label: "산업" },
   { key: "job", label: "직무" },
-  { key: "company", label: "기업" },
   { key: "type", label: "유형" },
   { key: "major", label: "전공" },
   { key: "mentor", label: "멘토" },
@@ -27,10 +26,10 @@ export default async function QuestionsPage({
 }) {
   const { category } = await searchParams;
   const active = category && TABS.some((t) => t.key === category) ? category : "all";
-  const questions = listPublicQuestions(
+  const questions = await listPublicQuestions(
     active === "all" ? undefined : { category: active as ThemeKind | "mentor" }
   );
-  const top = topQuestions(3);
+  const [top, answerCounts] = await Promise.all([topQuestions(3), answerCountByQuestion()]);
 
   return (
     <div className="container-page py-10">
@@ -85,7 +84,7 @@ export default async function QuestionsPage({
           <li className="card p-10 text-center text-ink-muted">아직 등록된 질문이 없습니다.</li>
         )}
         {questions.map((q) => {
-          const answers = listAnswers(q.id);
+          const answerN = answerCounts.get(q.id) ?? 0;
           const chips = Object.entries(q.themeRefs)
             .filter(([, v]) => !!v)
             .map(([, v]) => themeName(v as string))
@@ -107,10 +106,10 @@ export default async function QuestionsPage({
                   ))}
                   <span
                     className={`badge ${
-                      answers.length > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
+                      answerN > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                     }`}
                   >
-                    {answers.length > 0 ? `답변 ${answers.length}` : "답변 대기"}
+                    {answerN > 0 ? `답변 ${answerN}` : "답변 대기"}
                   </span>
                 </div>
                 <h3 className="mt-2 text-lg font-bold">{q.title}</h3>

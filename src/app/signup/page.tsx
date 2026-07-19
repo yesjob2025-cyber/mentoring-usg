@@ -5,8 +5,8 @@ import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = { title: "회원가입" };
 
-export default function SignupPage() {
-  const schools = listSchools().map((s) => ({ name: s.name, code: s.code, region: s.region }));
+export default async function SignupPage() {
+  const schools = (await listSchools()).map((s) => ({ name: s.name, code: s.code, region: s.region }));
   return (
     <div className="container-page flex min-h-[70vh] items-center justify-center py-12">
       <div className="w-full max-w-lg">
