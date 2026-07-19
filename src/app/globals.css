@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  @apply bg-cream text-ink antialiased;
+}
+
+/* 공용 컴포넌트 유틸 */
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-6 lg:px-8;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2
+           focus-visible:ring-offset-cream disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-ink text-cream-50 hover:bg-ink-soft;
+  }
+  .btn-brand {
+    @apply btn bg-brand-300 text-ink hover:bg-brand-400;
+  }
+  .btn-outline {
+    @apply btn border border-ink-line bg-white/70 text-ink hover:bg-white;
+  }
+  .btn-ghost {
+    @apply btn text-ink-soft hover:bg-ink/5;
+  }
+
+  .card {
+    @apply rounded-2xl border border-ink-line bg-white/80 shadow-card backdrop-blur-sm;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-ink-line bg-white px-3 py-1 text-xs font-medium text-ink-soft;
+  }
+  .chip-brand {
+    @apply chip border-brand-400/40 bg-brand-50 text-brand-500;
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-sm font-semibold text-ink-soft;
+  }
+  .field-input {
+    @apply w-full rounded-xl border border-ink-line bg-white px-3.5 py-2.5 text-sm text-ink
+           placeholder:text-ink-muted focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold;
+  }
+}
+
+/* 얇은 스크롤바 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #e4d8be transparent;
+}
