@@ -4,8 +4,8 @@ import { useActionState } from "react";
 import { signupAction, type FormState } from "@/app/actions/auth";
 import { SubmitButton } from "@/components/submit-button";
 
-const GRADES = ["1학년", "2학년", "3학년", "4학년", "5학년 이상", "졸업생", "기타"];
-const GENDERS = ["남성", "여성", "선택 안 함"];
+const GRADES = ["1학년", "2학년", "3학년", "4학년", "졸업"];
+const GENDERS = ["남", "여"];
 
 export function SignupForm({ schoolNames }: { schoolNames: string[] }) {
   const [state, action] = useActionState<FormState, FormData>(signupAction, {});
