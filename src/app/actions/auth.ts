@@ -14,20 +14,26 @@ export type FormState = { error?: string; ok?: boolean };
 
 export async function signupAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const code = String(formData.get("code") || "");
+  const schoolName = String(formData.get("schoolName") || "").trim();
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const studentNo = String(formData.get("studentNo") || "");
   const department = String(formData.get("department") || "");
+  const grade = String(formData.get("grade") || "");
+  const gender = String(formData.get("gender") || "");
   const phone = String(formData.get("phone") || "");
 
-  if (!code || !name || !email || !password) {
+  if (!code || !schoolName || !name || !email || !password) {
     return { error: "필수 항목을 모두 입력해 주세요." };
   }
   if (password.length < 6) return { error: "비밀번호는 6자 이상이어야 합니다." };
 
   const school = await getSchoolByCode(code);
   if (!school) return { error: "유효하지 않은 학교 접속코드입니다. 담당 부서에 문의하세요." };
+  if (school.name !== schoolName) {
+    return { error: "선택한 학교와 접속코드가 일치하지 않습니다. 다시 확인해 주세요." };
+  }
 
   const res = await createStudent({
     schoolId: school.id,
@@ -36,6 +42,8 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
     password,
     studentNo,
     department,
+    grade,
+    gender,
     phone,
   });
   if (!res.ok) return { error: res.error };

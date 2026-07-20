@@ -60,6 +60,8 @@ export interface User {
   name: string;
   studentNo?: string;
   department?: string;
+  grade?: string; // 학년 (선택)
+  gender?: string; // 성별 (선택)
   phone?: string;
   email: string;
   passwordHash: string;

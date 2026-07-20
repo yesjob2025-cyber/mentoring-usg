@@ -111,6 +111,8 @@ export default async function AdminDashboard() {
                 <th className="px-5 py-3 font-semibold">상태</th>
                 <th className="px-5 py-3 font-semibold">이름</th>
                 <th className="px-5 py-3 font-semibold">학과</th>
+                <th className="px-5 py-3 font-semibold">학년</th>
+                <th className="px-5 py-3 font-semibold">성별</th>
                 <th className="px-5 py-3 font-semibold">학번</th>
                 <th className="px-5 py-3 text-right font-semibold">질문 수</th>
                 <th className="px-5 py-3 font-semibold">최근 접속</th>
@@ -119,7 +121,7 @@ export default async function AdminDashboard() {
             <tbody className="divide-y divide-ink-line">
               {stats.students.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">
+                  <td colSpan={8} className="px-5 py-8 text-center text-ink-muted">
                     아직 가입한 학생이 없습니다.
                   </td>
                 </tr>
@@ -142,6 +144,8 @@ export default async function AdminDashboard() {
                   </td>
                   <td className="px-5 py-3 font-semibold">{s.name}</td>
                   <td className="px-5 py-3 text-ink-soft">{s.department ?? "-"}</td>
+                  <td className="px-5 py-3 text-ink-soft">{s.grade ?? "-"}</td>
+                  <td className="px-5 py-3 text-ink-soft">{s.gender ?? "-"}</td>
                   <td className="px-5 py-3 text-ink-soft">{s.studentNo ?? "-"}</td>
                   <td className="px-5 py-3 text-right font-bold">{s.questionCount}</td>
                   <td className="px-5 py-3 text-ink-muted">{formatKST(s.lastActiveAt)}</td>

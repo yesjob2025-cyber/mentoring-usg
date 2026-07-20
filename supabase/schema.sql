@@ -23,6 +23,8 @@ create table if not exists users (
   name text not null,
   "studentNo" text,
   department text,
+  grade text,
+  gender text,
   phone text,
   email text not null,
   "passwordHash" text not null,

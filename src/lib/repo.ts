@@ -57,6 +57,8 @@ export async function createStudent(input: {
   password: string;
   studentNo?: string;
   department?: string;
+  grade?: string;
+  gender?: string;
   phone?: string;
 }): Promise<{ ok: true; user: User } | { ok: false; error: string }> {
   if (await getUserByEmail(input.email)) return { ok: false, error: "이미 가입된 이메일입니다." };
@@ -69,6 +71,8 @@ export async function createStudent(input: {
     passwordHash: hashPassword(input.password),
     studentNo: input.studentNo?.trim(),
     department: input.department?.trim(),
+    grade: input.grade?.trim() || undefined,
+    gender: input.gender?.trim() || undefined,
     phone: input.phone?.trim(),
     createdAt: nowIso(),
     lastActiveAt: nowIso(),
@@ -401,6 +405,8 @@ export async function schoolStats(schoolId: string) {
         name: u.name,
         department: u.department,
         studentNo: u.studentNo,
+        grade: u.grade,
+        gender: u.gender,
         questionCount: u.questionCount,
         lastActiveAt: u.lastActiveAt,
         online: isOnline(u),
