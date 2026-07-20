@@ -18,18 +18,18 @@ const NOW = "2026-07-19T09:00:00.000Z";
 // ── 학교 + 접속 코드 + 관리자 계정 (참여 12개교) ──────────
 type SchoolDef = Omit<School, "adminPasswordHash" | "createdAt"> & { adminPassword: string };
 const SCHOOL_DEFS: SchoolDef[] = [
-  { id: "sch_ksu", name: "경성대학교", code: "KSU2025", region: "부산", adminUsername: "ksu-admin", adminPassword: "Ksu@2025!" },
-  { id: "sch_kosin", name: "고신대학교", code: "KOSIN2025", region: "부산", adminUsername: "kosin-admin", adminPassword: "Kosin@2025!" },
-  { id: "sch_tu", name: "동명대학교", code: "TU2025", region: "부산", adminUsername: "tu-admin", adminPassword: "Tu@2025!" },
-  { id: "sch_dsu", name: "동서대학교", code: "DSU2025", region: "부산", adminUsername: "dsu-admin", adminPassword: "Dsu@2025!" },
-  { id: "sch_dau", name: "동아대학교", code: "DAU2025", region: "부산", adminUsername: "dau-admin", adminPassword: "Dau@2025!" },
-  { id: "sch_deu", name: "동의대학교", code: "DEU2025", region: "부산", adminUsername: "deu-admin", adminPassword: "Deu@2025!" },
-  { id: "sch_pknu", name: "국립부경대학교", code: "PKNU2025", region: "부산", adminUsername: "pknu-admin", adminPassword: "Pknu@2025!" },
-  { id: "sch_bufs", name: "부산외국어대학교", code: "BUFS2025", region: "부산", adminUsername: "bufs-admin", adminPassword: "Bufs@2025!" },
-  { id: "sch_silla", name: "신라대학교", code: "SILLA2025", region: "부산", adminUsername: "silla-admin", adminPassword: "Silla@2025!" },
-  { id: "sch_ysu", name: "영산대학교", code: "YSU2025", region: "경남", adminUsername: "ysu-admin", adminPassword: "Ysu@2025!" },
-  { id: "sch_uou", name: "울산대학교", code: "UOU2025", region: "울산", adminUsername: "uou-admin", adminPassword: "Uou@2025!" },
-  { id: "sch_inje", name: "인제대학교", code: "INJE2025", region: "경남", adminUsername: "inje-admin", adminPassword: "Inje@2025!" },
+  { id: "sch_ksu", name: "경성대학교", code: "M95MTQBP", region: "부산", adminUsername: "ksu-admin", adminPassword: "Ksu@2025!" },
+  { id: "sch_kosin", name: "고신대학교", code: "ZNE5W4UC", region: "부산", adminUsername: "kosin-admin", adminPassword: "Kosin@2025!" },
+  { id: "sch_tu", name: "동명대학교", code: "QUGNHPSJ", region: "부산", adminUsername: "tu-admin", adminPassword: "Tu@2025!" },
+  { id: "sch_dsu", name: "동서대학교", code: "ZAY8BN82", region: "부산", adminUsername: "dsu-admin", adminPassword: "Dsu@2025!" },
+  { id: "sch_dau", name: "동아대학교", code: "634PUU8D", region: "부산", adminUsername: "dau-admin", adminPassword: "Dau@2025!" },
+  { id: "sch_deu", name: "동의대학교", code: "JAYGCZPH", region: "부산", adminUsername: "deu-admin", adminPassword: "Deu@2025!" },
+  { id: "sch_pknu", name: "국립부경대학교", code: "C2T2SF43", region: "부산", adminUsername: "pknu-admin", adminPassword: "Pknu@2025!" },
+  { id: "sch_bufs", name: "부산외국어대학교", code: "WBTXSBZN", region: "부산", adminUsername: "bufs-admin", adminPassword: "Bufs@2025!" },
+  { id: "sch_silla", name: "신라대학교", code: "U4MSTK7M", region: "부산", adminUsername: "silla-admin", adminPassword: "Silla@2025!" },
+  { id: "sch_ysu", name: "영산대학교", code: "HAWN6H7Y", region: "경남", adminUsername: "ysu-admin", adminPassword: "Ysu@2025!" },
+  { id: "sch_uou", name: "울산대학교", code: "B6HKSZ33", region: "울산", adminUsername: "uou-admin", adminPassword: "Uou@2025!" },
+  { id: "sch_inje", name: "인제대학교", code: "Y7F6ABB5", region: "경남", adminUsername: "inje-admin", adminPassword: "Inje@2025!" },
 ];
 
 // ── 토크콘서트 일정 (제안서: 8/24~9/3, 9일 × 5회 = 45회) ──
