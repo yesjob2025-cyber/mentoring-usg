@@ -1,6 +1,14 @@
 import "server-only";
 import { buildSeed } from "./seed";
-import { count, insertMany, usingSupabase, type Collection } from "./data";
+import { count, insertMany, clear, usingSupabase, type Collection } from "./data";
+
+// 멘토만 교체 (학교·학생·질문 데이터는 보존)
+export async function reseedMentors(): Promise<{ reseeded: string; count: number }> {
+  const d = buildSeed();
+  await clear("mentors");
+  await insertMany("mentors", d.mentors as unknown as Record<string, unknown>[]);
+  return { reseeded: "mentors", count: d.mentors.length };
+}
 
 // Supabase 가 비어 있으면 시드 데이터를 채운다. (JSON 백엔드는 store 가 자동 시드하므로 불필요)
 export async function seedIfEmpty(

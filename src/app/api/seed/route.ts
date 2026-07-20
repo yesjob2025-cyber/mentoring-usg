@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { seedIfEmpty } from "@/lib/seed-runner";
+import { seedIfEmpty, reseedMentors } from "@/lib/seed-runner";
 
 // 보호된 시드 엔드포인트: /api/seed?secret=... [&force=1]
 // SEED_SECRET 환경변수와 일치해야 실행. Supabase 를 시드 데이터로 채운다.
@@ -15,6 +15,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
+    // ?only=mentors : 멘토만 교체 (학교·학생·질문 보존)
+    if (url.searchParams.get("only") === "mentors") {
+      return NextResponse.json(await reseedMentors());
+    }
     const result = await seedIfEmpty(force);
     return NextResponse.json(result);
   } catch (e) {

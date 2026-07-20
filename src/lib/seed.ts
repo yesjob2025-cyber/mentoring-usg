@@ -10,7 +10,7 @@ import type {
   TalkTrack,
 } from "./types";
 import { hashPassword } from "./crypto";
-import { buildMentors } from "./mentor-generator";
+import { buildConfirmedMentors } from "./mentor-generator";
 import { industries, jobs } from "./taxonomy";
 
 const NOW = "2026-07-19T09:00:00.000Z";
@@ -67,7 +67,7 @@ function buildTalkSessions(): TalkSession[] {
 }
 
 export function buildSeed(): Database {
-  const mentors = buildMentors();
+  const mentors = buildConfirmedMentors();
 
   const schools: School[] = SCHOOL_DEFS.map(({ adminPassword, ...s }) => ({
     ...s,

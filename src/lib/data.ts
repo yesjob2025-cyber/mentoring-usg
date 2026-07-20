@@ -95,6 +95,17 @@ export async function patch(
   persist();
 }
 
+export async function clear(c: Collection): Promise<void> {
+  if (hasSupabase) {
+    const idField = c === "answerTokens" ? "token" : "id";
+    const { error } = await supabase().from(TABLE[c]).delete().neq(idField, "__never_matches__");
+    if (error) throw new Error(`[data.clear ${c}] ${error.message}`);
+    return;
+  }
+  (db()[c] as unknown[]).length = 0;
+  persist();
+}
+
 export async function count(c: Collection): Promise<number> {
   if (hasSupabase) {
     const { count: n, error } = await supabase()

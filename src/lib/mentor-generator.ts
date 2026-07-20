@@ -1,6 +1,7 @@
 import type { Mentor, MentorTags } from "./types";
 import { industries, jobs, companyTypes, majors, companies } from "./taxonomy";
 import rawPool from "@/data/mentor-pool.raw.json";
+import confirmedPool from "@/data/mentor-pool-confirmed.json";
 
 // ─────────────────────────────────────────────────────────────
 // 멘토풀 원본(제안서 별첨)에서 가상 프로필/태그를 생성
@@ -379,4 +380,118 @@ export function buildMentors(): Mentor[] {
     });
   });
   return mentors;
+}
+
+// ─────────────────────────────────────────────────────────────
+// 확정 멘토 풀 (별첨 확정본) — 실제 소속/학력/주요업무 반영
+//  - 태그는 소속·전공·주요업무 텍스트로 추론
+//  - 주요업무가 3개 미만이면 직무(부서) 특성에 맞는 공통 문구로 3줄까지 보강
+//  - 전화번호는 확정 전까지 공통 번호 사용
+// ─────────────────────────────────────────────────────────────
+type ConfirmedEntry = { name: string; org: string; edu?: string; duties?: string[] };
+
+const CONFIRM_PHONE = "010-8553-6027";
+
+// 직무별 공통 주요업무(부서 특성 반영) — 부족한 줄 보강용
+const GENERIC_DUTIES: Record<string, string[]> = {
+  인사총무: ["채용·인사운영 및 조직 관리", "성과·보상 제도 운영 및 노무 지원", "교육·복리후생 등 총무 업무"],
+  마케팅: ["브랜드·마케팅 전략 수립 및 실행", "채널·프로모션 기획 및 성과 분석", "시장·경쟁사 조사 및 인사이트 도출"],
+  회계세무: ["결산·정산 및 재무제표 작성", "원가·손익 분석 및 예산 관리", "세무 신고 및 자금 집행 관리"],
+  사업기획: ["사업 전략·경영계획 수립", "실적 관리 및 KPI 운영", "부서간 협업 및 과제 관리"],
+  영업: ["고객 발굴 및 관계 관리", "수주·계약 및 매출 관리", "제안·견적 및 사후 관리"],
+  해외영업: ["해외 고객·파트너 관리", "수출입 및 계약 관리", "글로벌 시장 개척 및 지원"],
+  SW개발: ["애플리케이션 설계 및 개발", "코드 리뷰·테스트 및 배포", "요구사항 분석 및 유지보수"],
+  IT인프라: ["서버·네트워크 인프라 운영", "장애 대응 및 보안 관리", "시스템 성능 모니터링 및 개선"],
+  "AI/데이터": ["데이터 수집·정제 및 분석", "모델 개발 및 성능 개선", "데이터 파이프라인 구축·운영"],
+  기계설계: ["기계 구조·부품 설계", "해석·검증 및 도면 작성", "시제품 제작 및 개선 설계"],
+  전기설계: ["전기·제어 시스템 설계", "회로·설비 검증 및 시험", "설계 표준화 및 유지보수"],
+  생산관리: ["생산 계획 수립 및 공정 관리", "품질·납기·원가 관리", "설비 운영 및 공정 개선"],
+  품질관리: ["품질 기준 수립 및 검사", "부적합 원인 분석 및 개선", "인증·감사 및 협력사 품질관리"],
+  구매: ["자재·부품 소싱 및 계약", "원가 절감 및 협력사 관리", "수급 계획 및 납기 관리"],
+  연구개발: ["신제품·신기술 연구개발", "시험·검증 및 데이터 분석", "과제 기획 및 성과 이관"],
+  안전관리: ["안전보건 관리체계 운영", "위험성 평가 및 진단", "법규 대응 및 협력사 안전관리"],
+  금융상담: ["여신·수신 등 금융 업무", "고객 상담 및 심사", "리스크 관리 및 사후관리"],
+  전문의료: ["환자 진료·검사 지원", "의료 정보 및 기록 관리", "부서 운영 및 안전 관리"],
+  콘텐츠기획: ["콘텐츠 기획 및 제작", "채널 운영 및 성과 관리", "협업 및 일정 관리"],
+  디자인: ["제품·시각 디자인 기획", "디자인 개발 및 검수", "트렌드 분석 및 협업"],
+  매장관리: ["매장 운영 및 재고 관리", "상품 진열·VMD 및 판매 관리", "고객 응대 및 손익 관리"],
+  사회복지: ["대상자 상담 및 사업 운영", "지역 자원 연계 및 관리", "제도·행정 지원 업무"],
+  고객서비스: ["고객 응대 및 안전 관리", "서비스 품질 관리", "현장 운영 및 지원"],
+  컨설팅: ["현황 진단 및 전략 수립", "솔루션 제안 및 실행 지원", "성과 관리 및 사후관리"],
+  물류관리: ["운송·물류 계획 및 관리", "재고·창고 운영", "정산 및 협력사 관리"],
+  행정지원: ["문서·행정 사무 처리", "예산·자원 관리 지원", "부서 운영 및 대외 협력"],
+};
+const DEFAULT_DUTIES = ["담당 부서 실무 전반 수행", "관련 업무 기획 및 관리", "부서 협업 및 개선 활동"];
+
+function padDuties(duties: string[], jobNames: string[]): string[] {
+  const out = [...duties];
+  const pool = jobNames.flatMap((j) => GENERIC_DUTIES[j] || []).concat(DEFAULT_DUTIES);
+  let i = 0;
+  while (out.length < 3 && i < pool.length) {
+    if (!out.includes(pool[i])) out.push(pool[i]);
+    i++;
+  }
+  return out.slice(0, 3);
+}
+
+export function buildConfirmedMentors(): Mentor[] {
+  const pool = confirmedPool as ConfirmedEntry[];
+  return pool.map((entry, idx) => {
+    const org = entry.org || "";
+    const edu = (entry.edu || "").trim();
+    const dutyList = entry.duties || [];
+    const text = `${org} ${edu} ${dutyList.join(" ")}`;
+    const seed = hash(entry.name + "|" + org + "|" + idx);
+    const rnd = prng(seed);
+
+    const indIds = detectIndustries(text);
+    const jIds = detectJobs(text);
+    const tId = detectType(org);
+    const mIds = detectMajors(jIds, indIds);
+    const cIds = detectCompanies(org);
+    const jobNames = jIds.map((x) => jobs.find((j) => j.id === x)?.name).filter(Boolean) as string[];
+
+    const tags: MentorTags = { industry: indIds, job: jIds, company: cIds, type: [tId], major: mIds };
+    // 소속/직급 분리: org 끝이 직급이면 title 로, 아니면 소속 전체를 company 로
+    const RANK = /(대표이사|대표|회장|부사장|전무|상무|이사|부장|차장|과장|대리|주임|사원|팀장|파트장|실장|본부장|센터장|소장|수석|선임연구원|책임연구원|선임|책임|연구원|매니저|엔지니어|계장|프로|전임|TL|PFC)$/;
+    let company = org.trim();
+    let rank = "";
+    const ls = company.lastIndexOf(" ");
+    const lastTok = ls >= 0 ? company.slice(ls + 1) : "";
+    if (RANK.test(lastTok)) {
+      rank = lastTok;
+      company = company.slice(0, ls).trim();
+    }
+    const jn0 = jobNames[0];
+    const title = rank || (jn0 && !company.includes(jn0) ? jn0 : "현직자");
+    const years = rint(rnd, 2, 15);
+    const education = edu || pick(rnd, REGION_UNIS) + " 졸업";
+    const duties = padDuties(dutyList, jobNames);
+
+    const areaPool = [
+      ...jobNames.map((j) => `${j} 실무`),
+      ...duties.map((d) => (d.length > 18 ? d.slice(0, 18) + "…" : d)),
+      "커리어·진로 상담",
+    ];
+    const mentoringAreas = [...new Set(areaPool)].slice(0, 4);
+
+    return {
+      id: `m-${idx + 1}`,
+      name: entry.name,
+      company,
+      title,
+      years,
+      education,
+      summary: `${company} · ${title} · 현직 멘토`,
+      career: [`${company} ${title} 재직`, ...duties, education].filter(Boolean),
+      mentoringAreas,
+      tags,
+      kakaoPhone: CONFIRM_PHONE,
+      answerCount: 0,
+      avgResponseHours: rint(rnd, 4, 24),
+      participationScore: rint(rnd, 70, 99),
+      active: true,
+      featured: true,
+    } satisfies Mentor;
+  });
 }
