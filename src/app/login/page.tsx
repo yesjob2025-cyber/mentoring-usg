@@ -11,7 +11,7 @@ export default function LoginPage() {
         <div className="card p-8">
           <h1 className="text-2xl font-extrabold">로그인</h1>
           <p className="mt-1 text-sm text-ink-muted">
-            YESJOB 멘토링에 오신 것을 환영합니다.
+            부울경 연합 현직자 멘토링에 오신 것을 환영합니다.
           </p>
           <LoginForm />
           <p className="mt-6 text-center text-sm text-ink-muted">

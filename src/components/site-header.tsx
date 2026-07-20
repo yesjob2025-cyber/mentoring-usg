@@ -14,11 +14,11 @@ export function SiteHeader({ session }: { session: SessionData | null }) {
       <div className="container-page flex h-16 items-center justify-between gap-4">
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-ink text-sm font-black text-brand-300">
-              Y
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-ink text-sm font-black text-brand-300">
+              부
             </span>
-            <span className="text-lg font-extrabold tracking-tight">
-              YESJOB<span className="text-brand-400"> 멘토링</span>
+            <span className="text-base font-extrabold leading-tight tracking-tight sm:text-lg">
+              부울경 연합 <span className="text-brand-400">현직자 멘토링</span>
             </span>
           </Link>
           <nav className="hidden items-center gap-1 md:flex">

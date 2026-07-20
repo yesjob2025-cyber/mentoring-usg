@@ -6,11 +6,11 @@ import { getSession } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: {
-    default: "YESJOB 멘토링 | 부울경 연합 현직자 온라인 멘토링",
-    template: "%s | YESJOB 멘토링",
+    default: "부울경 연합 현직자 멘토링 | 실시간 Q&A · 온라인 토크콘서트",
+    template: "%s | 부울경 연합 현직자 멘토링",
   },
   description:
-    "산업·직무·기업·전공별 현직자 멘토 추천과 실시간 Q&A, 온라인 직무 토크콘서트. 부울경 연합 현직자 온라인 멘토링 플랫폼.",
+    "산업·직무·유형·전공별 현직자 멘토 추천과 실시간 Q&A, 온라인 직무 토크콘서트. 부울경 연합 현직자 온라인 멘토링 플랫폼.",
 };
 
 export default async function RootLayout({

@@ -33,9 +33,9 @@ export default async function AnswerPage({
       <div className="card p-6 sm:p-8">
         <div className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-ink text-sm font-black text-brand-300">
-            Y
+            부
           </span>
-          <span className="font-extrabold">YESJOB 멘토링</span>
+          <span className="font-extrabold">부울경 연합 현직자 멘토링</span>
         </div>
         <p className="mt-4 text-sm text-ink-muted">
           {mentor.name} 멘토님, 아래 질문에 답변해 주세요. 답변은 사이트에 저장되고 학생에게

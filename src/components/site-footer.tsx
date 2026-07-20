@@ -7,9 +7,9 @@ export function SiteFooter() {
         <div>
           <div className="flex items-center gap-2">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-ink text-sm font-black text-brand-300">
-              Y
+              부
             </span>
-            <span className="text-lg font-extrabold">YESJOB 멘토링</span>
+            <span className="text-lg font-extrabold">부울경 연합 현직자 멘토링</span>
           </div>
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-ink-muted">
             지역 정주형 부울경 연합 현직자 온라인 멘토링 플랫폼.

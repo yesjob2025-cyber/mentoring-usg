@@ -209,7 +209,7 @@ export async function notifyMentorNewQuestion(
     to: mentor.kakaoPhone || "010-0000-0000",
     recvName: mentor.name,
     tplCode: process.env.KAKAO_TPL_NEW_QUESTION || "mentor_new_question",
-    subject: "[YESJOB 멘토링] 새 질문이 도착했습니다",
+    subject: "[부울경 멘토링] 새 질문이 도착했습니다",
     message:
       `${mentor.name} 멘토님, 새로운 질문이 도착했습니다.\n\n` +
       `▶ ${question.title}\n\n` +
@@ -230,7 +230,7 @@ export async function notifyStudentNewAnswer(
     to: student.phone || "010-0000-0000",
     recvName: student.name,
     tplCode: process.env.KAKAO_TPL_NEW_ANSWER || "student_new_answer",
-    subject: "[YESJOB 멘토링] 멘토 답변이 등록되었습니다",
+    subject: "[부울경 멘토링] 멘토 답변이 등록되었습니다",
     message:
       `${student.name}님, 질문에 대한 멘토 답변이 등록되었습니다.\n\n` +
       `▶ ${question.title}\n` +
@@ -251,7 +251,7 @@ export async function sendTestMessage(
     recvName: "테스트",
     tplCode: process.env.KAKAO_TPL_NEW_QUESTION || "test",
     subject: "[YESJOB] 발송 테스트",
-    message: "YESJOB 멘토링 발송 테스트 메시지입니다. 이 문자가 오면 연동 성공입니다.",
+    message: "부울경 멘토링 발송 테스트 메시지입니다. 이 문자가 오면 연동 성공입니다.",
     button: { name: "사이트 열기", url: SITE_URL },
   });
   return {
