@@ -1,12 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { listSchools } from "@/lib/repo";
 import { SignupForm } from "./signup-form";
 
 export const metadata: Metadata = { title: "회원가입" };
 
-export default async function SignupPage() {
-  const schools = (await listSchools()).map((s) => ({ name: s.name, code: s.code, region: s.region }));
+export default function SignupPage() {
   return (
     <div className="container-page flex min-h-[70vh] items-center justify-center py-12">
       <div className="w-full max-w-lg">
@@ -24,24 +22,6 @@ export default async function SignupPage() {
             </Link>
           </p>
         </div>
-
-        <details className="card mt-4 p-4 text-sm">
-          <summary className="cursor-pointer font-semibold text-ink-soft">
-            데모 학교 접속코드 (프로토타입 확인용)
-          </summary>
-          <ul className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {schools.map((s) => (
-              <li key={s.code} className="flex items-center justify-between rounded-lg bg-cream-100 px-3 py-1.5">
-                <span className="text-ink-soft">
-                  {s.name} <span className="text-ink-muted">· {s.region}</span>
-                </span>
-                <code className="rounded bg-white px-2 py-0.5 font-mono text-xs text-brand-500">
-                  {s.code}
-                </code>
-              </li>
-            ))}
-          </ul>
-        </details>
       </div>
     </div>
   );

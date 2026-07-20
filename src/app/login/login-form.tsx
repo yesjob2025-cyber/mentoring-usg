@@ -24,9 +24,6 @@ export function LoginForm() {
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>
       )}
       <SubmitButton className="btn-primary w-full">로그인</SubmitButton>
-      <p className="text-center text-xs text-ink-muted">
-        데모 계정: student1@pknu.ac.kr / test1234
-      </p>
     </form>
   );
 }
