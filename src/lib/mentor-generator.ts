@@ -388,7 +388,16 @@ export function buildMentors(): Mentor[] {
 //  - 주요업무가 3개 미만이면 직무(부서) 특성에 맞는 공통 문구로 3줄까지 보강
 //  - 전화번호는 확정 전까지 공통 번호 사용
 // ─────────────────────────────────────────────────────────────
-type ConfirmedEntry = { name: string; org: string; edu?: string; duties?: string[] };
+type ConfirmedEntry = {
+  name: string;
+  org: string;
+  edu?: string;
+  duties?: string[];
+  // 수기 큐레이션 태그 (기업·소속·주요업무 기반). 있으면 키워드 추론보다 우선.
+  ind?: string[];
+  job?: string[];
+  type?: string;
+};
 
 const CONFIRM_PHONE = "010-8553-6027";
 
@@ -444,9 +453,16 @@ export function buildConfirmedMentors(): Mentor[] {
     const seed = hash(entry.name + "|" + org + "|" + idx);
     const rnd = prng(seed);
 
-    const indIds = detectIndustries(text);
-    const jIds = detectJobs(text);
-    const tId = detectType(org);
+    // 수기 큐레이션 태그 우선 → 없으면 키워드 추론으로 폴백
+    const indIds =
+      entry.ind && entry.ind.length
+        ? (entry.ind.map((n) => indId.get(n)).filter(Boolean) as string[])
+        : detectIndustries(text);
+    const jIds =
+      entry.job && entry.job.length
+        ? (entry.job.map((n) => jobId.get(n)).filter(Boolean) as string[])
+        : detectJobs(text);
+    const tId = (entry.type && typeId.get(entry.type)) || detectType(org);
     const mIds = detectMajors(jIds, indIds);
     const cIds = detectCompanies(org);
     const jobNames = jIds.map((x) => jobs.find((j) => j.id === x)?.name).filter(Boolean) as string[];
