@@ -97,9 +97,9 @@ export default async function HomePage() {
           <ProgramCard
             tag="② 온라인 토크콘서트"
             title="45명 현직자 릴레이 토크콘서트"
-            desc="8/24~9/3, 매일 5명씩 9일간 진행되는 온라인 직무 토크콘서트. Zoom으로 현장 업무와 취업 노하우를 만나보세요."
+            desc="8/24~9/3, 매일 5명씩 9일간 진행되는 온라인 직무 토크콘서트. 원하는 회차를 미리 예약하고, 사이트 안 화상 교육장에서 바로 만나보세요."
             href="/talk-concert"
-            cta="일정 확인하기"
+            cta="예약하고 참여하기"
           />
         </div>
       </section>

@@ -71,11 +71,14 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
 export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
+  const nextRaw = String(formData.get("next") || "");
+  // 오픈 리다이렉트 방지: 내부 경로만 허용
+  const next = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/qna";
   const user = await authenticateStudent(email, password);
   if (!user) return { error: "이메일 또는 비밀번호가 올바르지 않습니다." };
   await touchActivity(user.id);
   await createSession({ role: "student", uid: user.id, schoolId: user.schoolId, name: user.name });
-  redirect("/qna");
+  redirect(next);
 }
 
 export async function adminLoginAction(_prev: FormState, formData: FormData): Promise<FormState> {

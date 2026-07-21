@@ -4,7 +4,12 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "로그인" };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
   return (
     <div className="container-page flex min-h-[70vh] items-center justify-center py-12">
       <div className="w-full max-w-md">
@@ -13,7 +18,7 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-ink-muted">
             부울경 연합 현직자 멘토링에 오신 것을 환영합니다.
           </p>
-          <LoginForm />
+          <LoginForm next={next} />
           <p className="mt-6 text-center text-sm text-ink-muted">
             아직 회원이 아니신가요?{" "}
             <Link href="/signup" className="font-semibold text-brand-500 hover:underline">

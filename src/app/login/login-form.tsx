@@ -4,10 +4,11 @@ import { useActionState } from "react";
 import { loginAction, type FormState } from "@/app/actions/auth";
 import { SubmitButton } from "@/components/submit-button";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [state, action] = useActionState<FormState, FormData>(loginAction, {});
   return (
     <form action={action} className="mt-6 space-y-4">
+      {next && <input type="hidden" name="next" value={next} />}
       <div>
         <label className="field-label" htmlFor="email">
           이메일

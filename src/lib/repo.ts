@@ -345,18 +345,45 @@ export async function topQuestions(limit = 5): Promise<Question[]> {
 export async function listTalkSessions(): Promise<TalkSession[]> {
   return all<TalkSession>("talkSessions");
 }
+export async function getTalkSession(id: string): Promise<TalkSession | undefined> {
+  return one<TalkSession>("talkSessions", "id", id);
+}
 export async function applyTalk(
   sessionId: string,
   userId: string
 ): Promise<{ ok: boolean; error?: string }> {
   const s = await one<TalkSession>("talkSessions", "id", sessionId);
   if (!s) return { ok: false, error: "세션을 찾을 수 없습니다." };
-  if (!s.applicantUserIds.includes(userId)) {
+  const applicants = s.applicantUserIds ?? [];
+  if (applicants.includes(userId)) return { ok: true };
+  if (applicants.length >= s.capacity) {
+    return { ok: false, error: "이 회차의 신청이 마감되었습니다." };
+  }
+  await patch("talkSessions", "id", sessionId, {
+    applicantUserIds: [...applicants, userId],
+  });
+  return { ok: true };
+}
+export async function cancelTalk(
+  sessionId: string,
+  userId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const s = await one<TalkSession>("talkSessions", "id", sessionId);
+  if (!s) return { ok: false, error: "세션을 찾을 수 없습니다." };
+  const applicants = s.applicantUserIds ?? [];
+  if (applicants.includes(userId)) {
     await patch("talkSessions", "id", sessionId, {
-      applicantUserIds: [...s.applicantUserIds, userId],
+      applicantUserIds: applicants.filter((id) => id !== userId),
     });
   }
   return { ok: true };
+}
+/** 특정 학생이 신청한 토크콘서트 회차 */
+export async function listTalkReservations(userId: string): Promise<TalkSession[]> {
+  const rows = await all<TalkSession>("talkSessions");
+  return rows
+    .filter((s) => (s.applicantUserIds ?? []).includes(userId))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot);
 }
 
 /** 학교 소속 학생 질문에 대해 채택된 답변의 정산 원장 */
