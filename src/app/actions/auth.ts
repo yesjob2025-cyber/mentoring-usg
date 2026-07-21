@@ -18,13 +18,24 @@ export async function signupAction(_prev: FormState, formData: FormData): Promis
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
-  const studentNo = String(formData.get("studentNo") || "");
-  const department = String(formData.get("department") || "");
-  const grade = String(formData.get("grade") || "");
-  const gender = String(formData.get("gender") || "");
-  const phone = String(formData.get("phone") || "");
+  const studentNo = String(formData.get("studentNo") || "").trim();
+  const department = String(formData.get("department") || "").trim();
+  const grade = String(formData.get("grade") || "").trim();
+  const gender = String(formData.get("gender") || "").trim();
+  const phone = String(formData.get("phone") || "").trim();
 
-  if (!code || !schoolName || !name || !email || !password) {
+  if (
+    !code ||
+    !schoolName ||
+    !name ||
+    !studentNo ||
+    !department ||
+    !phone ||
+    !grade ||
+    !gender ||
+    !email ||
+    !password
+  ) {
     return { error: "필수 항목을 모두 입력해 주세요." };
   }
   if (password.length < 6) return { error: "비밀번호는 6자 이상이어야 합니다." };

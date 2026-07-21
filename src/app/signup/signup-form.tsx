@@ -50,34 +50,36 @@ export function SignupForm({ schoolNames }: { schoolNames: string[] }) {
         </div>
         <div>
           <label className="field-label" htmlFor="studentNo">
-            학번
+            학번 <span className="text-brand-500">*</span>
           </label>
-          <input id="studentNo" name="studentNo" className="field-input" placeholder="202012345" />
+          <input id="studentNo" name="studentNo" required className="field-input" placeholder="202012345" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="field-label" htmlFor="department">
-            학과
+            학과 <span className="text-brand-500">*</span>
           </label>
-          <input id="department" name="department" className="field-input" placeholder="기계공학과" />
+          <input id="department" name="department" required className="field-input" placeholder="기계공학과" />
         </div>
         <div>
           <label className="field-label" htmlFor="phone">
-            휴대폰 (카톡·문자 알림용)
+            휴대폰 (카톡·문자 알림용) <span className="text-brand-500">*</span>
           </label>
-          <input id="phone" name="phone" className="field-input" placeholder="010-1234-5678" />
+          <input id="phone" name="phone" required className="field-input" placeholder="010-1234-5678" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="field-label" htmlFor="grade">
-            학년 <span className="text-ink-muted">(선택)</span>
+            학년 <span className="text-brand-500">*</span>
           </label>
-          <select id="grade" name="grade" defaultValue="" className="field-input">
-            <option value="">선택 안 함</option>
+          <select id="grade" name="grade" required defaultValue="" className="field-input">
+            <option value="" disabled>
+              학년 선택
+            </option>
             {GRADES.map((g) => (
               <option key={g} value={g}>
                 {g}
@@ -87,10 +89,12 @@ export function SignupForm({ schoolNames }: { schoolNames: string[] }) {
         </div>
         <div>
           <label className="field-label" htmlFor="gender">
-            성별 <span className="text-ink-muted">(선택)</span>
+            성별 <span className="text-brand-500">*</span>
           </label>
-          <select id="gender" name="gender" defaultValue="" className="field-input">
-            <option value="">선택 안 함</option>
+          <select id="gender" name="gender" required defaultValue="" className="field-input">
+            <option value="" disabled>
+              성별 선택
+            </option>
             {GENDERS.map((g) => (
               <option key={g} value={g}>
                 {g}
