@@ -22,6 +22,16 @@ function weekday(dateStr: string) {
   return ["일", "월", "화", "수", "목", "금", "토"][new Date(dateStr).getDay()];
 }
 
+// 기존 데이터에 "19:00 · 주제" 형태로 시간이 접두된 경우 시간 부분 제거
+// (5개 계열 동시 진행이라 회차별 시간 구분이 없음)
+function topicText(raw: string): string {
+  const parts = raw.split(" · ");
+  if (parts.length > 1 && /^\d{1,2}:\d{2}$/.test(parts[0].trim())) {
+    return parts.slice(1).join(" · ");
+  }
+  return raw;
+}
+
 export default async function TalkConcertPage() {
   const [sessions, session] = await Promise.all([listTalkSessions(), getSession()]);
   const uid = session?.role === "student" ? session.uid : undefined;
@@ -114,8 +124,8 @@ export default async function TalkConcertPage() {
           <span className="badge bg-amber-50 text-amber-700">멘토 섭외 진행 중</span>
         </div>
         <p className="mt-1 text-ink-muted">
-          회차별로 사전 예약을 받습니다. 예약한 회차는 시간에 맞춰 화상 교육장으로 바로 입장할 수
-          있어요. (5개 계열: IT분야·공학·인문상경·보건복지·공공)
+          매일 19:00~22:00, 5개 계열(IT분야·공학·인문상경·보건복지·공공)이 동시에 진행됩니다. 계열별로
+          사전 예약을 받으며, 예약한 프로그램의 화상 교육장으로 바로 입장할 수 있어요.
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -128,18 +138,17 @@ export default async function TalkConcertPage() {
                     {date.slice(5).replace("-", ".")}{" "}
                     <span className="text-ink-muted">({weekday(date)})</span>
                   </p>
-                  <span className="text-xs text-ink-muted">{items.length}회차</span>
+                  <span className="text-xs text-ink-muted">{items.length}개 계열 동시</span>
                 </div>
                 <ul className="mt-3 space-y-2">
                   {items.map((s) => {
-                    const [time, topic] = s.topic.split(" · ");
+                    const topic = topicText(s.topic);
                     const applicants = s.applicantUserIds ?? [];
                     const reserved = uid ? applicants.includes(uid) : false;
                     const isFull = applicants.length >= s.capacity;
                     return (
                       <li key={s.id} className="rounded-lg border border-ink-line/60 p-2.5">
                         <div className="flex items-center gap-2 text-sm">
-                          <span className="w-11 shrink-0 font-mono text-xs text-ink-muted">{time}</span>
                           <span
                             className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
                               TRACK_STYLE[s.track] ?? "bg-ink/5 text-ink-soft border-ink-line"

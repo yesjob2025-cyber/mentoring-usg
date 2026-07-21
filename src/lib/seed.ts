@@ -45,10 +45,9 @@ const TALK_DAYS: { date: string; topics: string[] }[] = [
   { date: "2026-09-02", topics: ["자동차", "안전관리", "마케팅", "승무원", "사업인증"] },
   { date: "2026-09-03", topics: ["반도체", "연구개발", "ESG", "시각디자인", "전기"] },
 ];
-const SLOT_TIMES = ["19:00", "19:35", "20:10", "20:45", "21:20"];
-
 function buildTalkSessions(): TalkSession[] {
   const sessions: TalkSession[] = [];
+  // 하루 5개 계열은 19:00~22:00 동안 동시 진행 → 회차별 시간 구분 없음
   TALK_DAYS.forEach((day) => {
     day.topics.forEach((topic, i) => {
       sessions.push({
@@ -56,7 +55,7 @@ function buildTalkSessions(): TalkSession[] {
         date: day.date,
         slot: i + 1,
         track: TRACKS[i],
-        topic: `${SLOT_TIMES[i]} · ${topic}`,
+        topic,
         capacity: 100,
         applicantUserIds: [],
         status: "planned", // 섭외 확정 전 (페이지만 우선)

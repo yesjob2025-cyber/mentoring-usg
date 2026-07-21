@@ -12,6 +12,14 @@ function weekday(dateStr: string) {
   return ["일", "월", "화", "수", "목", "금", "토"][new Date(dateStr).getDay()];
 }
 
+function topicText(raw: string): string {
+  const parts = raw.split(" · ");
+  if (parts.length > 1 && /^\d{1,2}:\d{2}$/.test(parts[0].trim())) {
+    return parts.slice(1).join(" · ");
+  }
+  return raw;
+}
+
 export default async function TalkRoomPage({
   params,
 }: {
@@ -27,7 +35,7 @@ export default async function TalkRoomPage({
   if (!talk) notFound();
 
   const reserved = (talk.applicantUserIds ?? []).includes(session.uid!);
-  const [time, topic] = talk.topic.split(" · ");
+  const topic = topicText(talk.topic);
 
   // 예약자만 입장 가능
   if (!reserved) {
@@ -48,7 +56,7 @@ export default async function TalkRoomPage({
 
   // 공용 Jitsi 서버에서 방 이름 충돌을 피하기 위한 고유 접두사
   const roomName = `buulgyeong-mentoring-${talk.id}`;
-  const subject = `${talk.track} · ${topic || talk.topic}`;
+  const subject = `${talk.track} · ${topic}`;
   const { VideoRoom } = await import("./video-room");
 
   return (
@@ -60,10 +68,10 @@ export default async function TalkRoomPage({
           </Link>
           <h1 className="mt-1 text-2xl font-black">
             {talk.mentorName ? `${talk.mentorName} 멘토 ` : ""}
-            {topic || talk.topic}
+            {topic}
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
-            {talk.date.slice(5).replace("-", ".")} ({weekday(talk.date)}) {time} · {talk.track}
+            {talk.date.slice(5).replace("-", ".")} ({weekday(talk.date)}) 19:00~22:00 · {talk.track}
             {talk.company ? ` · ${talk.company}` : ""}
           </p>
         </div>
