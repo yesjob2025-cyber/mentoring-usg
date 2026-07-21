@@ -32,6 +32,7 @@ export async function seedIfEmpty(
     "payouts",
     "activity",
     "talkSessions",
+    "talkAttendance",
   ];
   const counts: Record<string, number> = {};
   for (const c of order) {

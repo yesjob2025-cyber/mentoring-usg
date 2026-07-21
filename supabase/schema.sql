@@ -128,6 +128,17 @@ create table if not exists talk_sessions (
   status text not null default 'planned'
 );
 
+-- 화상 교육장 출석/참여 로그
+create table if not exists talk_attendance (
+  id text primary key,
+  "sessionId" text not null,
+  "userId" text not null,
+  "userName" text not null,
+  "schoolId" text not null,
+  "joinedAt" text not null,
+  "leftAt" text
+);
+
 -- RLS: 이 앱은 서버(env의 비밀 키)로만 Supabase 에 접근하고, 어떤 키도 브라우저에
 -- 노출하지 않으므로 RLS 를 끈다. (신규 sb_secret_ 키의 RLS 우회 이슈 회피 + 설정 단순화)
 -- 향후 더 엄격히 하려면 RLS 활성화 + 서비스롤 정책을 추가할 것.
@@ -140,3 +151,4 @@ alter table answer_tokens  disable row level security;
 alter table payouts        disable row level security;
 alter table activity       disable row level security;
 alter table talk_sessions  disable row level security;
+alter table talk_attendance disable row level security;

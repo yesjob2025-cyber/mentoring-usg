@@ -23,6 +23,7 @@ const TABLE: Record<Collection, string> = {
   payouts: "payouts",
   activity: "activity",
   talkSessions: "talk_sessions",
+  talkAttendance: "talk_attendance",
 };
 
 export const usingSupabase = hasSupabase;

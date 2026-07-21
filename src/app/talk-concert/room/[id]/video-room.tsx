@@ -40,14 +40,17 @@ export function VideoRoom({
   roomName,
   displayName,
   subject,
+  sessionId,
 }: {
   roomName: string;
   displayName: string;
   subject: string;
+  sessionId: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const attendanceIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let api: {
@@ -55,6 +58,40 @@ export function VideoRoom({
       addEventListener: (event: string, listener: (...args: unknown[]) => void) => void;
     } | null = null;
     let disposed = false;
+
+    // 입장 기록 → 출석 id 저장
+    const logJoin = () => {
+      if (attendanceIdRef.current) return;
+      fetch("/api/talk/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d?.attendanceId) attendanceIdRef.current = d.attendanceId;
+        })
+        .catch(() => {});
+    };
+    // 퇴장 기록 (탭 종료 시에도 전송되도록 sendBeacon 우선)
+    const logLeave = () => {
+      const id = attendanceIdRef.current;
+      if (!id) return;
+      attendanceIdRef.current = null;
+      const body = JSON.stringify({ attendanceId: id });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon("/api/talk/leave", new Blob([body], { type: "application/json" }));
+      } else {
+        fetch("/api/talk/leave", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+    const onPageHide = () => logLeave();
+    window.addEventListener("pagehide", onPageHide);
 
     loadJitsiScript()
       .then(() => {
@@ -79,7 +116,12 @@ export function VideoRoom({
             DEFAULT_BACKGROUND: "#221f1a",
           },
         });
-        api.addEventListener("videoConferenceJoined", () => setLoading(false));
+        api.addEventListener("videoConferenceJoined", () => {
+          setLoading(false);
+          logJoin();
+        });
+        api.addEventListener("videoConferenceLeft", () => logLeave());
+        api.addEventListener("readyToClose", () => logLeave());
         // 프리조인 화면에서 바로 로딩 표시 해제
         setLoading(false);
       })
@@ -87,13 +129,15 @@ export function VideoRoom({
 
     return () => {
       disposed = true;
+      window.removeEventListener("pagehide", onPageHide);
+      logLeave();
       try {
         api?.dispose();
       } catch {
         /* noop */
       }
     };
-  }, [roomName, displayName, subject]);
+  }, [roomName, displayName, subject, sessionId]);
 
   if (error) {
     return (

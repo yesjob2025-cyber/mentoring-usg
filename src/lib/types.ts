@@ -155,6 +155,17 @@ export interface TalkSession {
   status: "planned" | "confirmed" | "done";
 }
 
+/** 화상 교육장 출석/참여 로그 (입장~퇴장) */
+export interface TalkAttendance {
+  id: string;
+  sessionId: string; // TalkSession.id
+  userId: string;
+  userName: string;
+  schoolId: string;
+  joinedAt: string;
+  leftAt?: string; // 퇴장 시 기록 (미기록이면 아직 참여 중)
+}
+
 export interface Database {
   schools: School[];
   users: User[];
@@ -165,4 +176,5 @@ export interface Database {
   payouts: PayoutRecord[];
   activity: ActivityEvent[];
   talkSessions: TalkSession[];
+  talkAttendance: TalkAttendance[];
 }

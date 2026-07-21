@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { listTalkSessions } from "@/lib/repo";
 import type { TalkSession } from "@/lib/types";
+import { TALK_TEST_SESSION_ID } from "@/lib/talk-config";
 
 export const metadata: Metadata = {
   title: "온라인 토크콘서트",
@@ -119,6 +120,7 @@ export default async function TalkConcertPage() {
                 <ul className="mt-3 space-y-2">
                   {items.map((s) => {
                     const topic = topicText(s.topic);
+                    const isTest = s.id === TALK_TEST_SESSION_ID;
                     return (
                       <li key={s.id} className="flex items-center gap-2 text-sm">
                         <span
@@ -129,6 +131,14 @@ export default async function TalkConcertPage() {
                           {s.track}
                         </span>
                         <span className="truncate text-ink-soft">{topic}</span>
+                        {isTest && (
+                          <Link
+                            href={`/talk-concert/room/${s.id}`}
+                            className="ml-auto shrink-0 rounded-full bg-brand-500 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-brand-600"
+                          >
+                            🔴 테스트 입장
+                          </Link>
+                        )}
                       </li>
                     );
                   })}
@@ -146,8 +156,9 @@ export default async function TalkConcertPage() {
             <h3 className="text-lg font-extrabold">자체 화상 교육장 (Zoom 불필요)</h3>
             <p className="mt-1 max-w-xl text-sm text-ink-soft">
               별도 프로그램 설치나 Zoom 계정 없이, 사이트 안에서 바로 화상 교육장이 열립니다. 브라우저에서
-              카메라·마이크 권한만 허용하면 되고, 각 계열 참가 학생들이 같은 방에서 멘토 특강과 실시간
-              간담회에 참여합니다. (참여 신청은 추후 오픈 예정)
+              카메라·마이크 권한만 허용하면 되고, 참가 학생들이 같은 방에서 멘토 특강과 실시간 간담회에
+              참여합니다. 지금은 <b>테스트 회차 1개</b>만 입장할 수 있으며, 입장·퇴장 기록은 학교 관리자
+              대시보드에 출석 로그로 남습니다.
             </p>
           </div>
           <span className="badge bg-emerald-50 text-emerald-700">브라우저에서 바로 참여</span>

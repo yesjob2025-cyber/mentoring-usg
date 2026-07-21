@@ -2,16 +2,24 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { schoolStats, schoolPayouts } from "@/lib/repo";
+import { schoolStats, schoolPayouts, listTalkAttendance, getTalkSession } from "@/lib/repo";
 import { themeMeta } from "@/lib/taxonomy";
 import { formatKST, formatKSTDate } from "@/lib/format";
-import type { ThemeKind } from "@/lib/types";
+import { TALK_TEST_SESSION_ID } from "@/lib/talk-config";
+import type { ThemeKind, TalkAttendance } from "@/lib/types";
 
 export const metadata: Metadata = { title: "학교 관리자 대시보드" };
 
 function categoryLabel(key: string) {
   if (key === "mentor") return "멘토";
   return themeMeta[key as ThemeKind]?.short ?? key;
+}
+
+function durationLabel(a: TalkAttendance): string {
+  if (!a.leftAt) return "참여 중";
+  const mins = Math.max(0, Math.round((new Date(a.leftAt).getTime() - new Date(a.joinedAt).getTime()) / 60000));
+  if (mins < 60) return `${mins}분`;
+  return `${Math.floor(mins / 60)}시간 ${mins % 60}분`;
 }
 
 export default async function AdminDashboard() {
@@ -23,6 +31,21 @@ export default async function AdminDashboard() {
     schoolPayouts(session.schoolId),
   ]);
   const school = stats.school;
+
+  // 화상 교육장 테스트 출석 로그 (테이블 미생성 시에도 대시보드는 정상 표시)
+  let attendance: TalkAttendance[] = [];
+  let testTalkTopic = "";
+  try {
+    const [rows, talk] = await Promise.all([
+      listTalkAttendance(TALK_TEST_SESSION_ID, session.schoolId),
+      getTalkSession(TALK_TEST_SESSION_ID),
+    ]);
+    attendance = rows;
+    if (talk) testTalkTopic = talk.topic.split(" · ").pop() ?? talk.topic;
+  } catch {
+    attendance = [];
+  }
+  const attendUnique = new Set(attendance.map((a) => a.userId)).size;
   const answerRate =
     stats.totalQuestions > 0
       ? Math.round((stats.answeredQuestions / stats.totalQuestions) * 100)
@@ -149,6 +172,60 @@ export default async function AdminDashboard() {
                   <td className="px-5 py-3 text-ink-soft">{s.studentNo ?? "-"}</td>
                   <td className="px-5 py-3 text-right font-bold">{s.questionCount}</td>
                   <td className="px-5 py-3 text-ink-muted">{formatKST(s.lastActiveAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 화상 교육장 출석 로그 (테스트) */}
+      <section className="mt-8 card overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-line p-5">
+          <div>
+            <h2 className="text-lg font-extrabold">화상 교육장 출석 로그</h2>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              테스트 회차{testTalkTopic ? ` · ${testTalkTopic}` : ""} · 우리 학교 학생 기준
+            </p>
+          </div>
+          <span className="text-sm text-ink-muted">
+            참여 {attendUnique}명 · 기록 {attendance.length}건
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-cream-100 text-left text-ink-muted">
+              <tr>
+                <th className="px-5 py-3 font-semibold">이름</th>
+                <th className="px-5 py-3 font-semibold">입장</th>
+                <th className="px-5 py-3 font-semibold">퇴장</th>
+                <th className="px-5 py-3 font-semibold">참여 시간</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-line">
+              {attendance.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-5 py-8 text-center text-ink-muted">
+                    아직 화상 교육장 입장 기록이 없습니다.
+                  </td>
+                </tr>
+              )}
+              {attendance.map((a) => (
+                <tr key={a.id}>
+                  <td className="px-5 py-3 font-semibold">{a.userName}</td>
+                  <td className="px-5 py-3 text-ink-soft">{formatKST(a.joinedAt)}</td>
+                  <td className="px-5 py-3 text-ink-soft">
+                    {a.leftAt ? formatKST(a.leftAt) : "—"}
+                  </td>
+                  <td className="px-5 py-3">
+                    <span
+                      className={`text-xs font-semibold ${
+                        a.leftAt ? "text-ink-soft" : "text-emerald-600"
+                      }`}
+                    >
+                      {durationLabel(a)}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>

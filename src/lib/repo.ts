@@ -10,6 +10,7 @@ import type {
   QuestionThemeRefs,
   ThemeKind,
   TalkSession,
+  TalkAttendance,
   AnswerToken,
   PayoutRecord,
   ActivityEvent,
@@ -384,6 +385,42 @@ export async function listTalkReservations(userId: string): Promise<TalkSession[
   return rows
     .filter((s) => (s.applicantUserIds ?? []).includes(userId))
     .sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot);
+}
+
+// ── 화상 교육장 출석 로그 ─────────────────────────────────
+/** 입장 기록 생성 → 출석 id 반환 */
+export async function recordTalkJoin(input: {
+  sessionId: string;
+  userId: string;
+  userName: string;
+  schoolId: string;
+}): Promise<TalkAttendance> {
+  const row: TalkAttendance = {
+    id: newId("att"),
+    sessionId: input.sessionId,
+    userId: input.userId,
+    userName: input.userName,
+    schoolId: input.schoolId,
+    joinedAt: nowIso(),
+  };
+  await insert("talkAttendance", row as unknown as Record<string, unknown>);
+  return row;
+}
+/** 퇴장 기록 (해당 출석 행에 leftAt 기록, 소유자 확인) */
+export async function recordTalkLeave(attendanceId: string, userId: string): Promise<void> {
+  const row = await one<TalkAttendance>("talkAttendance", "id", attendanceId);
+  if (!row || row.userId !== userId || row.leftAt) return;
+  await patch("talkAttendance", "id", attendanceId, { leftAt: nowIso() });
+}
+/** 회차별 출석 로그 (관리자용, 선택적 학교 필터) */
+export async function listTalkAttendance(
+  sessionId: string,
+  schoolId?: string
+): Promise<TalkAttendance[]> {
+  const rows = await all<TalkAttendance>("talkAttendance");
+  return rows
+    .filter((r) => r.sessionId === sessionId && (!schoolId || r.schoolId === schoolId))
+    .sort((a, b) => b.joinedAt.localeCompare(a.joinedAt));
 }
 
 /** 학교 소속 학생 질문에 대해 채택된 답변의 정산 원장 */

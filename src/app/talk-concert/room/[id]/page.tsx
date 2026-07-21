@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { getTalkSession } from "@/lib/repo";
+import { TALK_TEST_SESSION_ID } from "@/lib/talk-config";
 
 export const metadata: Metadata = {
   title: "화상 교육장 · 온라인 토크콘서트",
@@ -34,17 +35,16 @@ export default async function TalkRoomPage({
   const talk = await getTalkSession(id);
   if (!talk) notFound();
 
-  const reserved = (talk.applicantUserIds ?? []).includes(session.uid!);
   const topic = topicText(talk.topic);
 
-  // 예약자만 입장 가능
-  if (!reserved) {
+  // 현재는 테스트 회차 1개만 입장 가능
+  if (talk.id !== TALK_TEST_SESSION_ID) {
     return (
       <div className="container-page py-16">
         <div className="mx-auto max-w-md rounded-2xl border border-ink-line bg-cream-100 p-8 text-center">
-          <h1 className="text-xl font-extrabold">예약자 전용 교육장입니다</h1>
+          <h1 className="text-xl font-extrabold">아직 열리지 않은 교육장입니다</h1>
           <p className="mt-2 text-sm text-ink-soft">
-            이 회차를 먼저 예약해야 화상 교육장에 입장할 수 있어요.
+            현재는 테스트용 회차 1개만 입장할 수 있어요. 나머지 회차는 순차적으로 열립니다.
           </p>
           <Link href="/talk-concert" className="btn-brand mt-6 inline-flex">
             토크콘서트 일정으로 돌아가기
@@ -75,11 +75,16 @@ export default async function TalkRoomPage({
             {talk.company ? ` · ${talk.company}` : ""}
           </p>
         </div>
-        <span className="badge bg-emerald-50 text-emerald-700">예약 확인됨</span>
+        <span className="badge bg-amber-50 text-amber-700">테스트 교육장</span>
       </div>
 
       <div className="mt-4 h-[70vh] min-h-[480px]">
-        <VideoRoom roomName={roomName} displayName={session.name || "참가자"} subject={subject} />
+        <VideoRoom
+          roomName={roomName}
+          displayName={session.name || "참가자"}
+          subject={subject}
+          sessionId={talk.id}
+        />
       </div>
 
       <p className="mt-3 text-center text-xs text-ink-muted">

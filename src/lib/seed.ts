@@ -207,5 +207,6 @@ export function buildSeed(): Database {
     payouts,
     activity,
     talkSessions: buildTalkSessions(),
+    talkAttendance: [],
   };
 }
