@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+           margin: 0; padding: 16px; color: #1e293b; font-size: 13px; background: #f8fafc; }
+    h2 { margin: 0 0 4px; font-size: 15px; }
+    p.sub { margin: 0 0 14px; color: #64748b; font-size: 12px; }
+    label { display: block; font-weight: 600; margin: 10px 0 4px; color: #475569; font-size: 12px; }
+    .req::after { content: " *"; color: #dc2626; }
+    input, select, textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 8px;
+      font-size: 13px; font-family: inherit; background: #fff; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #3b6ef5; box-shadow: 0 0 0 3px #dbeafe; }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+    .types { display: flex; gap: 8px; margin-top: 2px; }
+    .types label { flex: 1; margin: 0; padding: 10px 8px; border: 1px solid #cbd5e1; border-radius: 8px;
+      text-align: center; cursor: pointer; font-weight: 600; background: #fff; }
+    .types input { display: none; }
+    .types input:checked + span { color: #1f43ad; }
+    .types label:has(input:checked) { border-color: #3b6ef5; background: #eef4ff; }
+    .actions { margin-top: 18px; display: flex; gap: 8px; }
+    button { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
+    .primary { background: #2b57d6; color: #fff; }
+    .primary:disabled { opacity: .5; cursor: default; }
+    .ghost { background: #e2e8f0; color: #334155; }
+    #result { margin-top: 14px; padding: 12px; border-radius: 8px; background: #ecfdf5; border: 1px solid #a7f3d0; display: none; }
+    #result a { color: #047857; font-weight: 700; word-break: break-all; }
+    #err { margin-top: 12px; color: #dc2626; font-size: 12px; display: none; }
+    .hint { color: #94a3b8; font-size: 11px; font-weight: 400; }
+  </style>
+</head>
+<body>
+  <h2>새 사업 준비 체크리스트</h2>
+  <p class="sub">유형과 시작일에 맞춰 준비 항목·D-day 마감일이 자동으로 채워진 구글 시트를 만들어 공유합니다.</p>
+
+  <form id="f">
+    <label class="req">사업명</label>
+    <input name="name" required placeholder="예: 2026 경남울산 현직자 멘토링" />
+
+    <label class="req">유형</label>
+    <div class="types">
+      <label><input type="radio" name="type" value="online" checked><span>온라인<br>(Zoom)</span></label>
+      <label><input type="radio" name="type" value="offline"><span>오프라인<br>교육/연수</span></label>
+      <label><input type="radio" name="type" value="expo"><span>행사<br>(박람회)</span></label>
+    </div>
+
+    <div class="row">
+      <div>
+        <label class="req">시작일</label>
+        <input type="date" name="startDate" required />
+      </div>
+      <div>
+        <label>종료일 <span class="hint">(선택)</span></label>
+        <input type="date" name="endDate" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div><label>기관</label><input name="org" placeholder="예: 경상국립대학교" /></div>
+      <div><label>부서</label><input name="dept" placeholder="예: 대학일자리플러스센터" /></div>
+    </div>
+
+    <div class="row">
+      <div><label>담당자</label><input name="manager" /></div>
+      <div><label>계약주체</label><input name="contractor" placeholder="예: 주식회사 예스잡" /></div>
+    </div>
+
+    <div class="row">
+      <div><label>행사장</label><input name="venue" placeholder="온라인(Zoom) / 리조트 등" /></div>
+      <div><label>시간</label><input name="time" placeholder="예: 19:00~21:00" /></div>
+    </div>
+
+    <label>예산 (원)</label>
+    <input name="budget" inputmode="numeric" placeholder="예: 10000000" />
+
+    <label>공유 대상 이메일 <span class="hint">(콤마로 여러 명, 선택)</span></label>
+    <input name="emails" placeholder="a@x.com, b@y.com" />
+
+    <label>비고 <span class="hint">(선택)</span></label>
+    <textarea name="memo" rows="2"></textarea>
+
+    <div class="actions">
+      <button type="button" class="ghost" onclick="google.script.host.close()">취소</button>
+      <button type="submit" class="primary" id="submit">체크리스트 생성</button>
+    </div>
+  </form>
+
+  <div id="err"></div>
+  <div id="result"></div>
+
+  <script>
+    document.getElementById('f').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = document.getElementById('submit');
+      var err = document.getElementById('err');
+      err.style.display = 'none';
+      btn.disabled = true; btn.textContent = '생성 중…';
+
+      var form = {};
+      new FormData(e.target).forEach(function (v, k) { form[k] = v; });
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          var r = document.getElementById('result');
+          r.style.display = 'block';
+          r.innerHTML =
+            '✅ <b>' + res.count + '개 준비 항목</b>으로 생성되었습니다' +
+            (res.shared ? ' · ' + res.shared + '명에게 공유' : '') + '.<br>' +
+            '<a href="' + res.url + '" target="_blank">시트 열기 →</a>';
+          btn.textContent = '완료';
+        })
+        .withFailureHandler(function (e) {
+          err.style.display = 'block';
+          err.textContent = '오류: ' + e.message;
+          btn.disabled = false; btn.textContent = '체크리스트 생성';
+        })
+        .generateChecklist(form);
+    });
+  </script>
+</body>
+</html>
