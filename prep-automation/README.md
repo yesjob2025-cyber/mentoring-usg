@@ -28,23 +28,34 @@
 
 ---
 
-## 설치 (5분, 붙여넣기 방식 — 권장)
+## 설치 A — 붙여넣기 1번 (가장 쉬움, 권장) ⭐
 
-1. **관리용 시트 만들기**: [sheets.new](https://sheets.new) 로 빈 구글 시트를 하나 만듭니다.
-   (이 시트가 "리모컨" 역할 — 실제 체크리스트는 매번 새 파일로 생성됩니다.)
-2. 상단 메뉴 **확장 프로그램 → Apps Script** 클릭 → 스크립트 편집기가 열립니다.
-3. 이 폴더의 파일 내용을 편집기에 그대로 옮깁니다.
+파일을 여러 개 만들 필요 없이 **`bundle.gs` 하나만** 붙여넣으면 됩니다.
+
+1. [sheets.new](https://sheets.new) 로 빈 구글 시트를 하나 만듭니다.
+   (이 시트가 "리모컨" — 실제 체크리스트는 매번 새 파일로 생성됩니다.)
+2. 상단 메뉴 **확장 프로그램 → Apps Script**.
+3. 편집기의 기존 내용을 지우고 **`bundle.gs` 전체를 붙여넣기** → 저장(💾).
+4. 함수 목록에서 `createSampleChecklist` 를 한 번 **실행** → 권한 승인 팝업에서 **허용**
+   (내 Drive/시트 접근 권한, 최초 1회만).
+5. 시트로 돌아가 **새로고침(F5)** → 상단에 **📋 교육사업 준비** 메뉴 등장. 끝.
+
+---
+
+## 설치 B — 파일 분리 방식
+
+유지보수하며 쓰려면 파일을 나눠 두는 편이 낫습니다. `bundle.gs` 대신:
+
+1~2. (위와 동일하게 빈 시트 → Apps Script 열기)
+3. 파일을 각각 옮깁니다.
    - `Code.gs` → 기본 `Code.gs`에 붙여넣기
-   - **＋** 버튼으로 스크립트 파일 추가 → 이름 `Templates` → `Templates.gs` 내용 붙여넣기
-   - **＋** 버튼으로 HTML 파일 추가 → 이름 `Dialog` → `Dialog.html` 내용 붙여넣기
-   - (선택) 좌측 ⚙️ **프로젝트 설정 → "appsscript.json 매니페스트 파일 표시"** 체크 후
-     `appsscript.json` 내용으로 교체 (권한 범위 지정)
-4. 저장(💾) 후, 편집기에서 `createSampleChecklist` 함수를 한 번 **실행** → 권한 승인 팝업에서 허용.
-   (내 Drive/시트에 접근하는 권한입니다. 최초 1회만.)
-5. 관리용 시트로 돌아가 **새로고침(F5)** → 상단에 **📋 교육사업 준비** 메뉴가 생깁니다.
+   - **＋** → 스크립트 파일 추가 → 이름 `Templates` → `Templates.gs` 내용
+   - **＋** → HTML 파일 추가 → 이름 `Dialog` → `Dialog.html` 내용
+   - (선택) ⚙️ **프로젝트 설정 → "appsscript.json 매니페스트 파일 표시"** 체크 후 `appsscript.json` 으로 교체
+4~5. (위와 동일: `createSampleChecklist` 실행·허용 → 시트 새로고침)
 
-> **clasp로 배포하고 싶다면**: `.clasp.json.example`을 `.clasp.json`으로 복사하고
-> `scriptId`를 채운 뒤 `clasp push`. (`npm i -g @google/clasp`, `clasp login` 필요)
+> **clasp CLI로 배포**: `.clasp.json.example`을 `.clasp.json`으로 복사하고 `scriptId`를 채운 뒤
+> `clasp push`. (`npm i -g @google/clasp`, `clasp login` 필요 — 본인 브라우저에서 구글 로그인)
 
 ---
 
@@ -79,6 +90,7 @@
 
 | 파일 | 역할 |
 |------|------|
+| `bundle.gs` | **올인원(단일 파일)** — 아래 3개를 합친 것. 설치 A에서 이것만 붙여넣으면 됨 |
 | `Code.gs` | 메뉴, 입력 처리, 시트 생성·서식, D-day 계산, Drive 저장·공유 |
 | `Templates.gs` | 유형별 준비 항목 템플릿 (여기만 고치면 항목/일정 변경) |
 | `Dialog.html` | 사업 정보 입력 폼 |
