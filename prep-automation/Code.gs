@@ -22,9 +22,19 @@ function getConfig() {
 // ── 메뉴 ──────────────────────────────────────────────────────
 
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('📋 교육사업 준비')
-    .addItem('＋ 새 사업 체크리스트 생성', 'openDialog')
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('📋 교육사업 준비')
+    .addItem('＋ 새 사업 준비 시트 만들기', 'openDialog')
+    .addSeparator()
+    .addSubMenu(
+      ui.createMenu('📄 산출물 생성 (현재 시트)')
+        .addItem('여행자보험 명단', 'genInsurance')
+        .addItem('학생 안내문', 'genStudentNotice')
+        .addItem('강사 스케줄 확인문', 'genSpeakerConfirm')
+        .addItem('명찰(인쇄용)', 'genNameTags')
+        .addItem('현수막·X배너 문구', 'genBannerCopy')
+    )
+    .addItem('📊 결과보고서 생성', 'genReport')
     .addSeparator()
     .addItem('📂 저장 폴더 지정', 'setFolder')
     .addItem('ℹ️ 사용 안내', 'showHelp')
@@ -100,18 +110,28 @@ function generateChecklist(form) {
 
   var items = templateFor(type);
 
-  // 1) 새 스프레드시트 생성
+  // 1) 이 스크립트가 붙은 시트를 "스크립트째로 복제" → 새 사업 파일에도 메뉴/산출물 기능이 그대로 따라감
+  var master = SpreadsheetApp.getActiveSpreadsheet();
+  if (!master) {
+    throw new Error('이 스크립트는 구글 시트에 연결된 상태에서 실행해야 합니다. (시트 → 확장 프로그램 → Apps Script)');
+  }
   var title = form.name.trim() + ' — 준비 체크리스트';
-  var ss = SpreadsheetApp.create(title);
-  var sh = ss.getSheets()[0];
+  var file = DriveApp.getFileById(master.getId()).makeCopy(title);
+  var ss = SpreadsheetApp.openById(file.getId());
+
+  // 복제본을 깨끗이 비우고 필요한 탭만 새로 구성 (이름 충돌 방지: 임시명으로 삽입 후 정리)
+  var sh = ss.insertSheet('__build__', 0);
+  ss.getSheets().forEach(function (s) {
+    if (s.getSheetId() !== sh.getSheetId()) ss.deleteSheet(s);
+  });
   sh.setName('체크리스트');
 
   var bounds = buildSheet(sh, form, typeLabel, start, end, items);
   addSummarySheet(ss.insertSheet('요약'), bounds);
+  createDataTabs(ss);
 
   // 2) Drive 폴더로 이동
   var cfg = getConfig();
-  var file = DriveApp.getFileById(ss.getId());
   if (cfg.folderId) {
     try {
       file.moveTo(DriveApp.getFolderById(cfg.folderId));
@@ -307,6 +327,36 @@ function addSummarySheet(sh, b) {
   sh.getRange('B8:B9').setNumberFormat('#,##0"원"');
   sh.setColumnWidth(1, 160);
   sh.setColumnWidth(2, 140);
+}
+
+// ── 데이터 입력 탭 (명단 / 강사·스케줄) ───────────────────────
+
+var ROSTER_HEADERS = ['연번', '학교', '성명', '학과', '학번', '학년', '성별', '연락처', '주민등록번호', '조', '방배정', '계좌(은행)', '비고'];
+var SPEAKER_HEADERS = ['일자', '시간', '세션명', '강사명', '소속', '연락처', '장소', '준비물', '강사료', '비고'];
+
+function createDataTabs(ss) {
+  makeInputSheet(ss, '참석자명단', ROSTER_HEADERS, 40,
+    '↓ 여기에 참석자를 입력하세요. 이 명단으로 여행자보험 명단·명찰·안내문이 자동 생성됩니다.');
+  makeInputSheet(ss, '강사·스케줄', SPEAKER_HEADERS, 20,
+    '↓ 여기에 강사/세션을 입력하세요. 이 표로 강사 스케줄 확인문이 자동 생성됩니다.');
+}
+
+function makeInputSheet(ss, name, headers, emptyRows, guide) {
+  var sh = ss.getSheetByName(name) || ss.insertSheet(name);
+  sh.clear();
+  sh.getRange(1, 1, 1, headers.length).merge().setValue(guide)
+    .setFontColor('#64748b').setFontStyle('italic').setBackground('#f1f5f9');
+  sh.getRange(2, 1, 1, headers.length).setValues([headers])
+    .setFontWeight('bold').setBackground('#334155').setFontColor('#ffffff')
+    .setHorizontalAlignment('center');
+  sh.setFrozenRows(2);
+  var widths = { '성명': 90, '학과': 150, '주민등록번호': 130, '연락처': 120, '세션명': 180, '준비물': 160, '계좌(은행)': 140 };
+  headers.forEach(function (h, i) { sh.setColumnWidth(i + 1, widths[h] || 80); });
+  if (emptyRows > 0) {
+    sh.getRange(3, 1, emptyRows, headers.length)
+      .setBorder(true, true, true, true, true, true, '#e2e8f0', SpreadsheetApp.BorderStyle.SOLID);
+  }
+  return sh;
 }
 
 // ── 날짜/숫자 유틸 ────────────────────────────────────────────
