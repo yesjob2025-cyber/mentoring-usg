@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getQuestion, listAnswers, getMentorsByIds, answerLinksForQuestion } from "@/lib/repo";
+import {
+  getQuestion,
+  listAnswers,
+  getMentorsByIds,
+  answerLinksForQuestion,
+  getUserById,
+} from "@/lib/repo";
 import { getSession } from "@/lib/session";
 import { themeName } from "@/lib/taxonomy";
 import { formatKST } from "@/lib/format";
@@ -37,6 +43,20 @@ export default async function QuestionDetailPage({
   const pendingMentors = targets.filter((m) => !answers.some((a) => a.mentorId === m.id));
   const answerLinks = isAdmin ? await answerLinksForQuestion(question.id) : [];
 
+  // 작성자 식별 정보(이름·학번)는 관리자와 본인에게만 노출
+  const isAdminAny = isAdmin || isSuperAdmin;
+  const isOwner = !!session?.uid && session.uid === question.authorUserId;
+  const canSeeIdentity = isAdminAny || isOwner;
+  const authorUser = canSeeIdentity ? await getUserById(question.authorUserId) : undefined;
+  let authorLine: string;
+  if (canSeeIdentity) {
+    authorLine = question.authorName;
+    if (isAdminAny && !question.isPublic) authorLine += " (익명)";
+    if (authorUser?.studentNo) authorLine += ` · 학번 ${authorUser.studentNo}`;
+  } else {
+    authorLine = displayAuthor(question, false);
+  }
+
   return (
     <div className="container-page max-w-3xl py-10">
       <Link href="/questions" className="text-sm text-ink-muted hover:text-ink">
@@ -64,7 +84,7 @@ export default async function QuestionDetailPage({
         <p className="mt-4 whitespace-pre-wrap leading-relaxed text-ink-soft">{question.body}</p>
         <div className="mt-6 flex items-center justify-between border-t border-ink-line pt-4">
           <p className="text-sm text-ink-muted">
-            {displayAuthor(question, isAdmin || isSuperAdmin)} · {formatKST(question.createdAt)}
+            {authorLine} · {formatKST(question.createdAt)}
           </p>
           <LikeButton kind="question" id={question.id} questionId={question.id} count={question.likes} />
         </div>
