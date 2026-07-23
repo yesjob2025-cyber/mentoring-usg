@@ -525,6 +525,52 @@ export async function globalStats() {
   };
 }
 
+/** 멘토별 질문 발송/답변 현황 (전체 관리자용) */
+export async function mentorQnaStats() {
+  const [tokens, answers, mentors] = await Promise.all([
+    all<AnswerToken>("answerTokens"),
+    all<Answer>("answers"),
+    all<Mentor>("mentors"),
+  ]);
+  const mentorById = new Map(mentors.map((m) => [m.id, m]));
+
+  const received = new Map<string, number>();
+  for (const t of tokens) received.set(t.mentorId, (received.get(t.mentorId) ?? 0) + 1);
+
+  const answered = new Map<string, number>();
+  const lastAt = new Map<string, string>();
+  for (const a of answers) {
+    answered.set(a.mentorId, (answered.get(a.mentorId) ?? 0) + 1);
+    const prev = lastAt.get(a.mentorId);
+    if (!prev || a.createdAt > prev) lastAt.set(a.mentorId, a.createdAt);
+  }
+
+  const rows = [...received.entries()].map(([mid, recv]) => {
+    const m = mentorById.get(mid);
+    const ans = answered.get(mid) ?? 0;
+    return {
+      id: mid,
+      name: m?.name ?? "(삭제된 멘토)",
+      company: m?.company ?? "",
+      title: m?.title ?? "",
+      received: recv,
+      answered: ans,
+      pending: Math.max(0, recv - ans),
+      answerRate: recv ? Math.round((ans / recv) * 100) : 0,
+      lastAnsweredAt: lastAt.get(mid),
+    };
+  });
+  rows.sort((a, b) => b.pending - a.pending || b.received - a.received || b.answered - a.answered);
+
+  return {
+    rows,
+    totalReceived: tokens.length,
+    totalAnswered: answers.length,
+    activeMentors: answered.size,
+    answerRate: tokens.length ? Math.round((answers.length / tokens.length) * 100) : 0,
+  };
+}
+
 // ── 관리자 대시보드 집계 ─────────────────────────────────
 export async function schoolStats(schoolId: string) {
   const [allUsers, allQuestions, allAnswers, school] = await Promise.all([

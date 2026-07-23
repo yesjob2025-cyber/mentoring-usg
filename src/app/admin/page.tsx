@@ -9,12 +9,14 @@ import {
   listQuestionsBySchool,
   userIdentityMap,
   answerCountByQuestion,
+  mentorQnaStats,
 } from "@/lib/repo";
 import { themeMeta } from "@/lib/taxonomy";
 import { formatKST, formatKSTDate } from "@/lib/format";
 import { TALK_TEST_SESSION_ID } from "@/lib/talk-config";
 import type { ThemeKind, TalkAttendance } from "@/lib/types";
 import { SchoolQuestions, type SchoolQuestionRow } from "./school-questions";
+import { MentorQna, type MentorQnaRow } from "./mentor-qna";
 
 export const metadata: Metadata = { title: "관리자 대시보드" };
 
@@ -280,6 +282,20 @@ async function SuperAdminDashboard() {
   }
   const attendUnique = new Set(attendance.map((a) => a.userId)).size;
 
+  // 멘토 질문·답변 현황
+  const mentorQ = await mentorQnaStats();
+  const mentorRows: MentorQnaRow[] = mentorQ.rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    company: r.company,
+    title: r.title,
+    received: r.received,
+    answered: r.answered,
+    pending: r.pending,
+    answerRate: r.answerRate,
+    lastAnswered: r.lastAnsweredAt ? formatKSTDate(r.lastAnsweredAt) : "",
+  }));
+
   return (
     <div className="container-page py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -340,6 +356,17 @@ async function SuperAdminDashboard() {
           </table>
         </div>
       </section>
+
+      {/* 멘토 질문·답변 요약 KPI */}
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Kpi label="발송 질문" value={mentorQ.totalReceived} unit="건" />
+        <Kpi label="답변 완료" value={mentorQ.totalAnswered} unit="건" />
+        <Kpi label="멘토 답변률" value={mentorQ.answerRate} unit="%" accent />
+        <Kpi label="답변 참여 멘토" value={mentorQ.activeMentors} unit="명" />
+      </div>
+
+      {/* 멘토 질문·답변 현황 (검색) */}
+      <MentorQna rows={mentorRows} />
 
       {/* 화상 교육장 출석 로그 (전체) */}
       <section className="mt-8 card overflow-hidden">
