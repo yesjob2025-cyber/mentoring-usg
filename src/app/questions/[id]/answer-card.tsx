@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { LikeButton } from "./like-button";
-import { adoptAnswerAction } from "@/app/questions/actions";
+import { adoptAnswerAction, deleteAnswerAction } from "@/app/questions/actions";
 import { GRADES, GRADE_AMOUNT } from "@/lib/grades";
 import { formatKST } from "@/lib/format";
 import { maskName } from "@/lib/mask";
@@ -24,18 +25,32 @@ export function AnswerCard({
   mentorTitle,
   questionId,
   isAdmin,
+  isSuperAdmin,
 }: {
   answer: AnswerVM;
   mentorCompany?: string;
   mentorTitle?: string;
   questionId: string;
   isAdmin: boolean;
+  isSuperAdmin?: boolean;
 }) {
+  const router = useRouter();
   const [adopted, setAdopted] = useState(answer.adopted);
   const [payout, setPayout] = useState(answer.payoutAmount);
   const [grade, setGrade] = useState(GRADES[0]);
   const [pending, startTransition] = useTransition();
+  const [deleting, startDelete] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  function del() {
+    if (!confirm("이 답변을 삭제할까요? 되돌릴 수 없습니다.")) return;
+    setError(null);
+    startDelete(async () => {
+      const res = await deleteAnswerAction(answer.id, questionId);
+      if (res.ok) router.refresh();
+      else setError(res.error ?? "삭제에 실패했습니다.");
+    });
+  }
 
   function adopt() {
     setError(null);
@@ -75,6 +90,15 @@ export function AnswerCard({
         <span className="text-xs text-ink-muted">{formatKST(answer.createdAt)}</span>
         <div className="flex items-center gap-2">
           <LikeButton kind="answer" id={answer.id} questionId={questionId} count={answer.likes} />
+          {isSuperAdmin && (
+            <button
+              onClick={del}
+              disabled={deleting}
+              className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100"
+            >
+              {deleting ? "삭제 중…" : "삭제"}
+            </button>
+          )}
           {isAdmin && !adopted && (
             <div className="flex items-center gap-1.5">
               <select

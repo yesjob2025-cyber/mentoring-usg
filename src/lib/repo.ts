@@ -1,5 +1,5 @@
 import "server-only";
-import { all, one, insert, insertMany, patch } from "./data";
+import { all, one, insert, insertMany, patch, remove } from "./data";
 import { newId, newToken, hashPassword, verifyPassword } from "./crypto";
 import type {
   Mentor,
@@ -306,6 +306,44 @@ export async function submitAnswerByToken(
   await patch("questions", "id", question.id, { status: "answered" });
   await patch("mentors", "id", mentor.id, { answerCount: mentor.answerCount + 1 });
   return { ok: true, answer, question };
+}
+
+// ── 삭제 (전체 관리자 전용) ───────────────────────────────
+/** 답변 1건 삭제 + 관련 정산 제거, 남은 답변 없으면 질문 상태 복구 */
+export async function deleteAnswer(answerId: string): Promise<void> {
+  const answers = await all<Answer>("answers");
+  const target = answers.find((a) => a.id === answerId);
+  if (!target) return;
+  await remove("answers", "id", answerId);
+  // 관련 정산 기록 제거
+  const payouts = await all<PayoutRecord>("payouts");
+  for (const p of payouts.filter((p) => p.answerId === answerId)) {
+    await remove("payouts", "id", p.id);
+  }
+  // 사용된 답변 토큰 재사용 방지를 위해 그대로 두되, 질문 상태 정리
+  const remaining = answers.filter((a) => a.questionId === target.questionId && a.id !== answerId);
+  if (remaining.length === 0) {
+    await patch("questions", "id", target.questionId, { status: "open" });
+  }
+}
+
+/** 질문 1건 삭제 + 관련 답변·토큰·정산 모두 제거 */
+export async function deleteQuestion(questionId: string): Promise<void> {
+  const [answers, tokens, payouts] = await Promise.all([
+    all<Answer>("answers"),
+    all<AnswerToken>("answerTokens"),
+    all<PayoutRecord>("payouts"),
+  ]);
+  for (const a of answers.filter((a) => a.questionId === questionId)) {
+    await remove("answers", "id", a.id);
+  }
+  for (const t of tokens.filter((t) => t.questionId === questionId)) {
+    await remove("answerTokens", "token", t.token);
+  }
+  for (const p of payouts.filter((p) => p.questionId === questionId)) {
+    await remove("payouts", "id", p.id);
+  }
+  await remove("questions", "id", questionId);
 }
 
 export async function likeAnswer(id: string): Promise<void> {

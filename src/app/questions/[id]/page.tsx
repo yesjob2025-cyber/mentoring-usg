@@ -8,6 +8,7 @@ import { formatKST } from "@/lib/format";
 import { maskName } from "@/lib/mask";
 import { LikeButton } from "./like-button";
 import { AnswerCard } from "./answer-card";
+import { DeleteQuestionButton } from "./delete-question-button";
 
 export const metadata: Metadata = { title: "질문 상세" };
 
@@ -22,6 +23,7 @@ export default async function QuestionDetailPage({
 
   const session = await getSession();
   const isAdmin = session?.role === "admin";
+  const isSuperAdmin = session?.role === "superadmin";
   const [answers, targets] = await Promise.all([
     listAnswers(question.id),
     getMentorsByIds(question.targetMentorIds),
@@ -51,6 +53,11 @@ export default async function QuestionDetailPage({
               {c}
             </span>
           ))}
+          {isSuperAdmin && (
+            <span className="ml-auto">
+              <DeleteQuestionButton questionId={question.id} />
+            </span>
+          )}
         </div>
         <h1 className="mt-3 text-2xl font-black">{question.title}</h1>
         <p className="mt-4 whitespace-pre-wrap leading-relaxed text-ink-soft">{question.body}</p>
@@ -137,6 +144,7 @@ export default async function QuestionDetailPage({
                   mentorTitle={mentor?.title}
                   questionId={question.id}
                   isAdmin={isAdmin}
+                  isSuperAdmin={isSuperAdmin}
                 />
               );
             })}

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { listPublicQuestions, answerCountByQuestion, topQuestions } from "@/lib/repo";
+import { getSession } from "@/lib/session";
 import { themeName, themeMeta } from "@/lib/taxonomy";
 import { formatKSTDate } from "@/lib/format";
 import type { ThemeKind } from "@/lib/types";
+import { DeleteQuestionButton } from "./[id]/delete-question-button";
 
 export const metadata: Metadata = {
   title: "질문 게시판",
@@ -29,7 +31,12 @@ export default async function QuestionsPage({
   const questions = await listPublicQuestions(
     active === "all" ? undefined : { category: active as ThemeKind | "mentor" }
   );
-  const [top, answerCounts] = await Promise.all([topQuestions(3), answerCountByQuestion()]);
+  const [top, answerCounts, session] = await Promise.all([
+    topQuestions(3),
+    answerCountByQuestion(),
+    getSession(),
+  ]);
+  const isSuperAdmin = session?.role === "superadmin";
 
   return (
     <div className="container-page py-10">
@@ -90,7 +97,12 @@ export default async function QuestionsPage({
             .map(([, v]) => themeName(v as string))
             .filter(Boolean) as string[];
           return (
-            <li key={q.id} className="card p-5 transition hover:shadow-pop">
+            <li key={q.id} className="card relative p-5 transition hover:shadow-pop">
+              {isSuperAdmin && (
+                <div className="absolute right-4 top-4 z-10">
+                  <DeleteQuestionButton questionId={q.id} />
+                </div>
+              )}
               <Link href={`/questions/${q.id}`} className="block">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="badge bg-ink/5 text-ink-soft">

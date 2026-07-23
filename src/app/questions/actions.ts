@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { likeQuestion, likeAnswer, adoptAnswer } from "@/lib/repo";
+import { likeQuestion, likeAnswer, adoptAnswer, deleteQuestion, deleteAnswer } from "@/lib/repo";
 import { GRADE_AMOUNT } from "@/lib/grades";
 
 export async function likeQuestionAction(id: string) {
@@ -29,4 +30,27 @@ export async function adoptAnswerAction(
   await adoptAnswer(answerId, amount, grade);
   revalidatePath(`/questions/${questionId}`);
   return { ok: true };
+}
+
+// 전체(연합) 관리자 전용: 답변 삭제
+export async function deleteAnswerAction(
+  answerId: string,
+  questionId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await getSession();
+  if (!session || session.role !== "superadmin") {
+    return { ok: false, error: "삭제 권한이 없습니다." };
+  }
+  await deleteAnswer(answerId);
+  revalidatePath(`/questions/${questionId}`);
+  return { ok: true };
+}
+
+// 전체(연합) 관리자 전용: 질문 삭제 (관련 답변·토큰·정산 함께 제거)
+export async function deleteQuestionAction(questionId: string): Promise<void> {
+  const session = await getSession();
+  if (!session || session.role !== "superadmin") return;
+  await deleteQuestion(questionId);
+  revalidatePath("/questions");
+  redirect("/questions");
 }

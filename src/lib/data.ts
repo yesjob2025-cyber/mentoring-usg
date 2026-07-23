@@ -96,6 +96,18 @@ export async function patch(
   persist();
 }
 
+export async function remove(c: Collection, idField: string, idValue: string): Promise<void> {
+  if (hasSupabase) {
+    const { error } = await supabase().from(TABLE[c]).delete().eq(idField, idValue);
+    if (error) throw new Error(`[data.remove ${c}] ${error.message}`);
+    return;
+  }
+  const rows = db()[c] as unknown as Record<string, unknown>[];
+  const idx = rows.findIndex((r) => r[idField] === idValue);
+  if (idx >= 0) rows.splice(idx, 1);
+  persist();
+}
+
 export async function clear(c: Collection): Promise<void> {
   if (hasSupabase) {
     const idField = c === "answerTokens" ? "token" : "id";
