@@ -232,6 +232,13 @@ export async function listPublicQuestions(filter?: {
   return qs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function listQuestionsBySchool(schoolId: string): Promise<Question[]> {
+  const rows = await all<Question>("questions");
+  return rows
+    .filter((q) => q.schoolId === schoolId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 export async function listQuestionsByUser(userId: string): Promise<Question[]> {
   const rows = await all<Question>("questions");
   return rows

@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { schoolStats, globalStats, listTalkAttendance, getTalkSession } from "@/lib/repo";
+import {
+  schoolStats,
+  globalStats,
+  listTalkAttendance,
+  getTalkSession,
+  listQuestionsBySchool,
+  userIdentityMap,
+  answerCountByQuestion,
+} from "@/lib/repo";
 import { themeMeta } from "@/lib/taxonomy";
 import { formatKST, formatKSTDate } from "@/lib/format";
 import { TALK_TEST_SESSION_ID } from "@/lib/talk-config";
 import type { ThemeKind, TalkAttendance } from "@/lib/types";
+import { SchoolQuestions, type SchoolQuestionRow } from "./school-questions";
 
 export const metadata: Metadata = { title: "관리자 대시보드" };
 
@@ -31,6 +39,23 @@ export default async function AdminDashboard() {
 
   const stats = await schoolStats(session.schoolId);
   const school = stats.school;
+
+  // 학교 질문 전체 (이름·학번 포함, 검색용)
+  const [schoolQuestions, identities, answerCounts] = await Promise.all([
+    listQuestionsBySchool(session.schoolId),
+    userIdentityMap(),
+    answerCountByQuestion(),
+  ]);
+  const questionRows: SchoolQuestionRow[] = schoolQuestions.map((q) => ({
+    id: q.id,
+    title: q.title,
+    body: q.body,
+    authorName: q.authorName,
+    studentNo: identities.get(q.authorUserId)?.studentNo ?? "",
+    date: formatKSTDate(q.createdAt),
+    answered: answerCounts.get(q.id) ?? 0,
+    anonymous: !q.isPublic,
+  }));
 
   // 화상 교육장 테스트 출석 로그 (테이블 미생성 시에도 대시보드는 정상 표시)
   let attendance: TalkAttendance[] = [];
@@ -229,28 +254,8 @@ export default async function AdminDashboard() {
         </div>
       </section>
 
-      {/* 최근 질문 */}
-      <section className="mt-8 card p-6">
-        <h2 className="text-lg font-extrabold">최근 질문</h2>
-        <ul className="mt-4 space-y-2">
-          {stats.recentQuestions.length === 0 && (
-            <li className="text-sm text-ink-muted">질문이 없습니다.</li>
-          )}
-          {stats.recentQuestions.map((q) => (
-            <li key={q.id}>
-              <Link
-                href={`/questions/${q.id}`}
-                className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-cream-100"
-              >
-                <span className="truncate text-sm font-medium">{q.title}</span>
-                <span className="ml-2 shrink-0 text-xs text-ink-muted">
-                  {formatKSTDate(q.createdAt)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {/* 학교 질문 전체 (이름·학번 + 검색) */}
+      <SchoolQuestions questions={questionRows} />
     </div>
   );
 }
