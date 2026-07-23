@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMentorById, listPublicQuestions } from "@/lib/repo";
 import { toPublicMentor } from "@/lib/view";
+import { maskName } from "@/lib/mask";
 import { MentorTagBadges } from "@/components/mentor-badges";
 
 export async function generateMetadata({
@@ -12,7 +13,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const m = await getMentorById(id);
-  return { title: m ? `${m.name} 멘토` : "멘토" };
+  return { title: m ? `${maskName(m.name)} 멘토` : "멘토" };
 }
 
 export default async function MentorPage({

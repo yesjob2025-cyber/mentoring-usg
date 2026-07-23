@@ -5,6 +5,7 @@ import { getQuestion, listAnswers, getMentorsByIds, answerLinksForQuestion } fro
 import { getSession } from "@/lib/session";
 import { themeName } from "@/lib/taxonomy";
 import { formatKST } from "@/lib/format";
+import { maskName } from "@/lib/mask";
 import { LikeButton } from "./like-button";
 import { AnswerCard } from "./answer-card";
 
@@ -68,7 +69,7 @@ export default async function QuestionDetailPage({
         </p>
         {pendingMentors.length > 0 && (
           <p className="mt-1 text-ink-muted">
-            답변 대기: {pendingMentors.slice(0, 6).map((m) => m.name).join(", ")}
+            답변 대기: {pendingMentors.slice(0, 6).map((m) => maskName(m.name)).join(", ")}
             {pendingMentors.length > 6 ? " 외" : ""}
           </p>
         )}

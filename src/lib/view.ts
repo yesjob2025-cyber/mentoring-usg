@@ -1,5 +1,6 @@
 // 클라이언트로 전달 가능한 안전 타입 (연락처 등 민감정보 제외)
 import type { Mentor, ThemeKind } from "./types";
+import { maskName } from "./mask";
 
 export interface PublicMentor {
   id: string;
@@ -27,7 +28,7 @@ export interface PublicMentor {
 export function toPublicMentor(m: Mentor): PublicMentor {
   return {
     id: m.id,
-    name: m.name,
+    name: maskName(m.name),
     company: m.company,
     title: m.title,
     years: m.years,

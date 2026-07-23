@@ -5,6 +5,7 @@ import { LikeButton } from "./like-button";
 import { adoptAnswerAction } from "@/app/questions/actions";
 import { GRADES, GRADE_AMOUNT } from "@/lib/grades";
 import { formatKST } from "@/lib/format";
+import { maskName } from "@/lib/mask";
 
 interface AnswerVM {
   id: string;
@@ -54,10 +55,10 @@ export function AnswerCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-full bg-brand-100 font-bold text-brand-500">
-            {answer.mentorName.slice(0, 1)}
+            {maskName(answer.mentorName).slice(0, 1)}
           </div>
           <div>
-            <p className="font-bold">{answer.mentorName} 멘토</p>
+            <p className="font-bold">{maskName(answer.mentorName)} 멘토</p>
             <p className="text-xs text-ink-muted">
               {[mentorCompany, mentorTitle].filter(Boolean).join(" · ")}
             </p>
