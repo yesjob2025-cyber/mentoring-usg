@@ -64,6 +64,9 @@ export async function askAction(input: {
 
   const mentors = await getMentorsByIds(input.targetMentorIds);
   if (mentors.length === 0) return { ok: false, error: "질문할 멘토를 1명 이상 선택해 주세요." };
+  if (mentors.length > 3) {
+    return { ok: false, error: "멘토는 한 번에 최대 3명까지만 선택할 수 있습니다." };
+  }
 
   const scope = mentors.length > 1 ? "broadcast" : "individual";
   const { question, tokens } = await createQuestion({

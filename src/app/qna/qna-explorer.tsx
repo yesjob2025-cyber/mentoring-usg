@@ -10,6 +10,9 @@ import { recommendAction, askAction } from "./actions";
 type SelKind = "industry" | "job" | "type" | "major";
 const KIND_ORDER: SelKind[] = ["industry", "job", "type", "major"];
 
+// 한 번에 질문할 수 있는 최대 멘토 수 (무분별한 다중 질문 방지)
+const MAX_MENTORS = 3;
+
 interface Props {
   isStudent: boolean;
   initial: RecommendedMentor[];
@@ -22,6 +25,7 @@ export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) 
   const [recs, setRecs] = useState<RecommendedMentor[]>(initial);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openKind, setOpenKind] = useState<SelKind | null>(null);
+  const [limitOpen, setLimitOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const composeRef = useRef<HTMLDivElement>(null);
 
@@ -63,8 +67,16 @@ export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) 
   function toggleMentor(id: string) {
     setSelected((prev) => {
       const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
+      if (n.has(id)) {
+        n.delete(id);
+        return n;
+      }
+      // 최대 인원 초과 시 안내 팝업 (선택은 그대로 유지)
+      if (n.size >= MAX_MENTORS) {
+        setLimitOpen(true);
+        return prev;
+      }
+      n.add(id);
       return n;
     });
   }
@@ -74,8 +86,9 @@ export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) 
     composeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function selectAllVisible() {
-    setSelected(new Set(recs.map((r) => r.mentor.id)));
+  // 추천 상위 N명(최대 3명) 선택
+  function selectTopMentors() {
+    setSelected(new Set(recs.slice(0, MAX_MENTORS).map((r) => r.mentor.id)));
     composeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -199,11 +212,15 @@ export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) 
               {pending && <span className="ml-2 text-sm font-normal text-ink-muted">불러오는 중…</span>}
             </h2>
             {recs.length > 0 && (
-              <button onClick={selectAllVisible} className="text-sm font-semibold text-brand-500 hover:underline">
-                전체 선택해서 질문
+              <button onClick={selectTopMentors} className="text-sm font-semibold text-brand-500 hover:underline">
+                추천 상위 3명 선택
               </button>
             )}
           </div>
+          <p className="mb-3 text-xs text-ink-muted">
+            멘토는 한 번에 <b className="text-brand-500">최대 {MAX_MENTORS}명</b>까지 선택할 수 있어요.
+            <span className="ml-1">({selected.size}/{MAX_MENTORS} 선택됨)</span>
+          </p>
 
           {recs.length === 0 ? (
             <div className="card p-8 text-center text-ink-muted">
@@ -279,6 +296,33 @@ export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) 
           />
         </div>
       </div>
+
+      {/* 최대 선택 인원 초과 안내 팝업 */}
+      {limitOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+          onClick={() => setLimitOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-pop"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-100 text-2xl">
+              ⚠️
+            </div>
+            <h3 className="mt-3 text-lg font-extrabold">멘토는 최대 {MAX_MENTORS}명까지</h3>
+            <p className="mt-2 text-sm text-ink-soft">
+              한 번에 질문할 수 있는 멘토는 <b className="text-brand-500">최대 {MAX_MENTORS}명</b>
+              입니다. 더 선택하려면 기존 선택을 먼저 해제해 주세요.
+            </p>
+            <button onClick={() => setLimitOpen(false)} className="btn-brand mt-5 w-full">
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

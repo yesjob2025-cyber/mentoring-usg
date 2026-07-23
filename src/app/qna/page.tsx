@@ -29,8 +29,8 @@ export default async function QnaPage() {
           산업·직무·유형·전공으로 멘토를 찾아 질문하세요
         </h1>
         <p className="mt-3 text-ink-soft">
-          4가지 테마를 선택하면 답변 가능한 멘토가 추천됩니다. 한 명에게 개별 질문하거나, 여러
-          멘토를 선택해 한 번에 질문할 수 있어요. 질문은 멘토에게 카카오톡·문자로 전달됩니다.
+          4가지 테마를 선택하면 답변 가능한 멘토가 추천됩니다. 한 명에게 개별 질문하거나, 최대 3명까지
+          선택해 한 번에 질문할 수 있어요. 질문은 멘토에게 카카오톡·문자로 전달됩니다.
         </p>
         <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-semibold text-brand-500">
           <span>🔔</span> 참여 멘토는 계속 추가·업데이트됩니다.
