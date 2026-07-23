@@ -226,6 +226,30 @@ export async function listPublicQuestions(filter?: {
   return qs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+/**
+ * 게시판 노출용 질문 목록 (열람 권한 반영)
+ *  - 전체 관리자: 비공개 포함 전체
+ *  - 학교 관리자: 공개 질문 + 자기 학교 학생의 비공개 질문
+ *  - 그 외: 공개 질문만
+ */
+export async function listBoardQuestions(
+  viewer: { role?: string; schoolId?: string },
+  filter?: { category?: ThemeKind | "mentor"; themeId?: string; mentorId?: string }
+): Promise<Question[]> {
+  let qs = await all<Question>("questions");
+  if (viewer.role === "superadmin") {
+    // 전체 열람
+  } else if (viewer.role === "admin") {
+    qs = qs.filter((q) => q.isPublic || q.schoolId === viewer.schoolId);
+  } else {
+    qs = qs.filter((q) => q.isPublic);
+  }
+  if (filter?.category) qs = qs.filter((q) => q.category === filter.category);
+  if (filter?.themeId) qs = qs.filter((q) => Object.values(q.themeRefs).includes(filter.themeId!));
+  if (filter?.mentorId) qs = qs.filter((q) => q.targetMentorIds.includes(filter.mentorId!));
+  return qs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 export async function listQuestionsByUser(userId: string): Promise<Question[]> {
   const rows = await all<Question>("questions");
   return rows

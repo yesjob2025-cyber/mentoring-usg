@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listPublicQuestions, answerCountByQuestion, topQuestions } from "@/lib/repo";
+import { listBoardQuestions, answerCountByQuestion, topQuestions } from "@/lib/repo";
 import { getSession } from "@/lib/session";
 import { themeName, themeMeta } from "@/lib/taxonomy";
 import { formatKSTDate } from "@/lib/format";
@@ -28,15 +28,17 @@ export default async function QuestionsPage({
 }) {
   const { category } = await searchParams;
   const active = category && TABS.some((t) => t.key === category) ? category : "all";
-  const questions = await listPublicQuestions(
-    active === "all" ? undefined : { category: active as ThemeKind | "mentor" }
-  );
-  const [top, answerCounts, session] = await Promise.all([
+  const session = await getSession();
+  const isSuperAdmin = session?.role === "superadmin";
+  const isAdmin = session?.role === "admin" || isSuperAdmin;
+  const [questions, top, answerCounts] = await Promise.all([
+    listBoardQuestions(
+      { role: session?.role, schoolId: session?.schoolId },
+      active === "all" ? undefined : { category: active as ThemeKind | "mentor" }
+    ),
     topQuestions(3),
     answerCountByQuestion(),
-    getSession(),
   ]);
-  const isSuperAdmin = session?.role === "superadmin";
 
   return (
     <div className="container-page py-10">
@@ -52,6 +54,12 @@ export default async function QuestionsPage({
           질문하기
         </Link>
       </div>
+
+      {isAdmin && (
+        <div className="mt-6 rounded-xl border border-ink-line bg-cream-100 px-4 py-3 text-sm text-ink-soft">
+          🔑 관리자 화면: {isSuperAdmin ? "비공개 질문을 포함한 전체 질문" : "공개 질문과 우리 학교 학생의 비공개 질문"}이 함께 표시됩니다.
+        </div>
+      )}
 
       {/* 우수 질문 */}
       {top.length > 0 && (
@@ -110,6 +118,9 @@ export default async function QuestionsPage({
                   </span>
                   {q.scope === "broadcast" && (
                     <span className="badge bg-purple-50 text-purple-700">다중질문</span>
+                  )}
+                  {!q.isPublic && (
+                    <span className="badge bg-ink/10 text-ink-soft">🔒 비공개</span>
                   )}
                   {chips.slice(0, 3).map((c) => (
                     <span key={c} className="badge bg-brand-50 text-brand-500">
