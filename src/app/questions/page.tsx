@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listPublicQuestions, answerCountByQuestion, topQuestions } from "@/lib/repo";
+import {
+  listPublicQuestions,
+  answerCountByQuestion,
+  topQuestions,
+  userIdentityMap,
+} from "@/lib/repo";
 import { getSession } from "@/lib/session";
 import { themeName, themeMeta } from "@/lib/taxonomy";
 import { formatKSTDate } from "@/lib/format";
 import { displayAuthor } from "@/lib/author";
-import type { ThemeKind } from "@/lib/types";
+import type { ThemeKind, Question } from "@/lib/types";
 import { DeleteQuestionButton } from "./[id]/delete-question-button";
 
 export const metadata: Metadata = {
@@ -32,11 +37,22 @@ export default async function QuestionsPage({
   const session = await getSession();
   const isSuperAdmin = session?.role === "superadmin";
   const isAdmin = session?.role === "admin" || isSuperAdmin;
-  const [questions, top, answerCounts] = await Promise.all([
+  const [questions, top, answerCounts, identities] = await Promise.all([
     listPublicQuestions(active === "all" ? undefined : { category: active as ThemeKind | "mentor" }),
     topQuestions(3),
     answerCountByQuestion(),
+    isAdmin ? userIdentityMap() : Promise.resolve(null),
   ]);
+
+  // 관리자: 이름 + 학번 / 그 외: 익명 규칙
+  function authorLine(q: Question): string {
+    if (!isAdmin) return displayAuthor(q, false);
+    let s = q.authorName;
+    if (!q.isPublic) s += " (익명)";
+    const sn = identities?.get(q.authorUserId)?.studentNo;
+    if (sn) s += ` · 학번 ${sn}`;
+    return s;
+  }
 
   return (
     <div className="container-page py-10">
@@ -136,7 +152,7 @@ export default async function QuestionsPage({
                 <h3 className="mt-2 text-lg font-bold">{q.title}</h3>
                 <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{q.body}</p>
                 <p className="mt-3 text-xs text-ink-muted">
-                  {displayAuthor(q, isAdmin)} · {formatKSTDate(q.createdAt)} · ♥ {q.likes} · 멘토{" "}
+                  {authorLine(q)} · {formatKSTDate(q.createdAt)} · ♥ {q.likes} · 멘토{" "}
                   {q.targetMentorIds.length}명에게 발송
                 </p>
               </Link>

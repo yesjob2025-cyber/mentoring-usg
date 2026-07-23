@@ -50,6 +50,11 @@ export async function listUsersBySchool(schoolId: string): Promise<User[]> {
   const rows = await all<User>("users");
   return rows.filter((u) => u.schoolId === schoolId && u.role === "student");
 }
+/** 목록 화면에서 작성자 식별(이름·학번)을 한 번에 조회하기 위한 맵 */
+export async function userIdentityMap(): Promise<Map<string, { name: string; studentNo?: string }>> {
+  const rows = await all<User>("users");
+  return new Map(rows.map((u) => [u.id, { name: u.name, studentNo: u.studentNo }]));
+}
 
 export async function createStudent(input: {
   schoolId: string;
