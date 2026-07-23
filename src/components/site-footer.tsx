@@ -11,11 +11,6 @@ export function SiteFooter() {
             </span>
             <span className="text-lg font-extrabold">부울경 연합 현직자 멘토링</span>
           </div>
-          <p className="mt-3 max-w-xs text-sm leading-relaxed text-ink-muted">
-            지역 정주형 부울경 연합 현직자 온라인 멘토링 플랫폼.
-            <br />
-            현직자 직무 멘토링과 실시간 질의응답을 동시에.
-          </p>
         </div>
         <div className="text-sm">
           <p className="mb-3 font-bold text-ink">프로그램</p>
@@ -65,7 +60,7 @@ export function SiteFooter() {
                 href="mailto:yes1@yesjob.kr?subject=%5B%EB%B6%80%EC%9A%B8%EA%B2%BD%20%EB%A9%98%ED%86%A0%EB%A7%81%5D%20%EB%AC%B8%EC%9D%98"
                 className="inline-flex items-center gap-1.5 hover:text-ink"
               >
-                <span aria-hidden>✉️</span> 이메일 문의 (yes1@yesjob.kr)
+                <span aria-hidden>✉️</span> 이메일 문의
               </a>
             </li>
             <li>
@@ -73,7 +68,7 @@ export function SiteFooter() {
                 href="sms:01085536027"
                 className="inline-flex items-center gap-1.5 hover:text-ink"
               >
-                <span aria-hidden>💬</span> 문자 문의 (010-8553-6027)
+                <span aria-hidden>💬</span> 문자 문의
               </a>
             </li>
           </ul>
