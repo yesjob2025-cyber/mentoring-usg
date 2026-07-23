@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { schoolStats, schoolPayouts, listTalkAttendance, getTalkSession } from "@/lib/repo";
+import { schoolStats, listTalkAttendance, getTalkSession } from "@/lib/repo";
 import { themeMeta } from "@/lib/taxonomy";
 import { formatKST, formatKSTDate } from "@/lib/format";
 import { TALK_TEST_SESSION_ID } from "@/lib/talk-config";
@@ -26,10 +26,7 @@ export default async function AdminDashboard() {
   const session = await getSession();
   if (!session || session.role !== "admin") redirect("/admin/login");
 
-  const [stats, payouts] = await Promise.all([
-    schoolStats(session.schoolId),
-    schoolPayouts(session.schoolId),
-  ]);
+  const stats = await schoolStats(session.schoolId);
   const school = stats.school;
 
   // 화상 교육장 테스트 출석 로그 (테이블 미생성 시에도 대시보드는 정상 표시)
@@ -52,7 +49,6 @@ export default async function AdminDashboard() {
       : 0;
   const catEntries = Object.entries(stats.questionsByCategory).sort((a, b) => b[1] - a[1]);
   const maxCat = Math.max(1, ...catEntries.map(([, v]) => v));
-  const totalPayout = payouts.reduce((s, p) => s + p.amount, 0);
 
   return (
     <div className="container-page py-10">
@@ -112,12 +108,9 @@ export default async function AdminDashboard() {
           <div className="mt-4 space-y-3 text-sm">
             <Row label="현재 온라인" value={`${stats.onlineNow}명`} />
             <Row label="미답변 질문" value={`${stats.openQuestions}건`} />
-            <Row label="채택·정산 건수" value={`${payouts.length}건`} />
-            <Row label="정산 총액(내부)" value={`${totalPayout.toLocaleString()}원`} />
+            <Row label="답변 완료" value={`${stats.answeredQuestions}건`} />
           </div>
-          <p className="mt-4 text-xs text-ink-muted">
-            * 온라인 기준: 최근 15분 이내 활동. 정산은 실제 송금 없이 내부 기록입니다.
-          </p>
+          <p className="mt-4 text-xs text-ink-muted">* 온라인 기준: 최근 15분 이내 활동.</p>
         </section>
       </div>
 
@@ -233,47 +226,28 @@ export default async function AdminDashboard() {
         </div>
       </section>
 
-      {/* 최근 질문 + 정산 */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        <section className="card p-6">
-          <h2 className="text-lg font-extrabold">최근 질문</h2>
-          <ul className="mt-4 space-y-2">
-            {stats.recentQuestions.length === 0 && (
-              <li className="text-sm text-ink-muted">질문이 없습니다.</li>
-            )}
-            {stats.recentQuestions.map((q) => (
-              <li key={q.id}>
-                <Link
-                  href={`/questions/${q.id}`}
-                  className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-cream-100"
-                >
-                  <span className="truncate text-sm font-medium">{q.title}</span>
-                  <span className="ml-2 shrink-0 text-xs text-ink-muted">
-                    {formatKSTDate(q.createdAt)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="card p-6">
-          <h2 className="text-lg font-extrabold">채택·정산 원장</h2>
-          <p className="mt-1 text-xs text-ink-muted">우수 답변 채택 시 멘토 차등 지급 기록</p>
-          <ul className="mt-4 space-y-2">
-            {payouts.length === 0 && <li className="text-sm text-ink-muted">정산 내역이 없습니다.</li>}
-            {payouts.map((p) => (
-              <li key={p.id} className="flex items-center justify-between rounded-lg bg-cream-100 px-3 py-2">
-                <div>
-                  <p className="text-sm font-semibold">{p.mentorName} 멘토</p>
-                  <p className="text-xs text-ink-muted">{p.reason}</p>
-                </div>
-                <span className="font-bold text-brand-500">{p.amount.toLocaleString()}원</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+      {/* 최근 질문 */}
+      <section className="mt-8 card p-6">
+        <h2 className="text-lg font-extrabold">최근 질문</h2>
+        <ul className="mt-4 space-y-2">
+          {stats.recentQuestions.length === 0 && (
+            <li className="text-sm text-ink-muted">질문이 없습니다.</li>
+          )}
+          {stats.recentQuestions.map((q) => (
+            <li key={q.id}>
+              <Link
+                href={`/questions/${q.id}`}
+                className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-cream-100"
+              >
+                <span className="truncate text-sm font-medium">{q.title}</span>
+                <span className="ml-2 shrink-0 text-xs text-ink-muted">
+                  {formatKSTDate(q.createdAt)}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }
