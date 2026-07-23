@@ -14,9 +14,9 @@ const secret = new TextEncoder().encode(
 );
 
 export interface SessionData {
-  role: "student" | "admin";
+  role: "student" | "admin" | "superadmin";
   uid?: string; // student user id
-  schoolId: string;
+  schoolId: string; // superadmin 은 "" (전체)
   name?: string;
 }
 

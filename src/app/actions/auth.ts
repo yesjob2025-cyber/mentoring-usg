@@ -9,6 +9,7 @@ import {
   touchActivity,
 } from "@/lib/repo";
 import { createSession, destroySession } from "@/lib/session";
+import { isSuperAdmin } from "@/lib/superadmin";
 
 export type FormState = { error?: string; ok?: boolean };
 
@@ -84,6 +85,11 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
 export async function adminLoginAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const username = String(formData.get("username") || "").trim();
   const password = String(formData.get("password") || "");
+  // 전체(연합) 관리자 먼저 확인
+  if (isSuperAdmin(username, password)) {
+    await createSession({ role: "superadmin", schoolId: "", name: "부울경 연합 전체 관리자" });
+    redirect("/admin");
+  }
   const school = await verifyAdmin(username, password);
   if (!school) return { error: "관리자 계정 정보가 올바르지 않습니다." };
   await createSession({ role: "admin", schoolId: school.id, name: `${school.name} 관리자` });

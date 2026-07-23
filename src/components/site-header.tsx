@@ -37,7 +37,7 @@ export function SiteHeader({ session }: { session: SessionData | null }) {
         <div className="flex items-center gap-2">
           {session ? (
             <>
-              {session.role === "admin" ? (
+              {session.role === "admin" || session.role === "superadmin" ? (
                 <Link href="/admin" className="btn-ghost hidden sm:inline-flex">
                   관리자 대시보드
                 </Link>

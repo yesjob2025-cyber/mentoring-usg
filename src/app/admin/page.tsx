@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { schoolStats, listTalkAttendance, getTalkSession } from "@/lib/repo";
+import { schoolStats, globalStats, listTalkAttendance, getTalkSession } from "@/lib/repo";
 import { themeMeta } from "@/lib/taxonomy";
 import { formatKST, formatKSTDate } from "@/lib/format";
 import { TALK_TEST_SESSION_ID } from "@/lib/talk-config";
 import type { ThemeKind, TalkAttendance } from "@/lib/types";
 
-export const metadata: Metadata = { title: "학교 관리자 대시보드" };
+export const metadata: Metadata = { title: "관리자 대시보드" };
 
 function categoryLabel(key: string) {
   if (key === "mentor") return "멘토";
@@ -24,7 +24,10 @@ function durationLabel(a: TalkAttendance): string {
 
 export default async function AdminDashboard() {
   const session = await getSession();
-  if (!session || session.role !== "admin") redirect("/admin/login");
+  if (!session || (session.role !== "admin" && session.role !== "superadmin")) {
+    redirect("/admin/login");
+  }
+  if (session.role === "superadmin") return <SuperAdminDashboard />;
 
   const stats = await schoolStats(session.schoolId);
   const school = stats.school;
@@ -247,6 +250,146 @@ export default async function AdminDashboard() {
             </li>
           ))}
         </ul>
+      </section>
+    </div>
+  );
+}
+
+async function SuperAdminDashboard() {
+  const g = await globalStats();
+  const answerRate =
+    g.totalQuestions > 0 ? Math.round((g.answeredQuestions / g.totalQuestions) * 100) : 0;
+
+  // 전체 화상 교육장 출석 로그 (모든 학교)
+  let attendance: TalkAttendance[] = [];
+  let testTalkTopic = "";
+  try {
+    const [rows, talk] = await Promise.all([
+      listTalkAttendance(TALK_TEST_SESSION_ID),
+      getTalkSession(TALK_TEST_SESSION_ID),
+    ]);
+    attendance = rows;
+    if (talk) testTalkTopic = talk.topic.split(" · ").pop() ?? talk.topic;
+  } catch {
+    attendance = [];
+  }
+  const attendUnique = new Set(attendance.map((a) => a.userId)).size;
+
+  return (
+    <div className="container-page py-10">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <span className="chip-brand">전체 관리자</span>
+          <h1 className="mt-3 text-3xl font-black">부울경 연합 전체 대시보드</h1>
+          <p className="mt-1 text-ink-soft">참여 {g.schoolCount}개교의 현황을 한눈에 확인하세요.</p>
+        </div>
+      </div>
+
+      {/* KPI */}
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <Kpi label="참여 학교" value={g.schoolCount} unit="개교" />
+        <Kpi label="가입 학생" value={g.totalStudents} unit="명" />
+        <Kpi label="현재 접속 중" value={g.onlineNow} unit="명" accent />
+        <Kpi label="총 질문" value={g.totalQuestions} unit="건" />
+        <Kpi label="답변률" value={answerRate} unit="%" />
+      </div>
+
+      {/* 학교별 현황 */}
+      <section className="mt-8 card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-ink-line p-5">
+          <h2 className="text-lg font-extrabold">학교별 현황</h2>
+          <span className="text-sm text-ink-muted">{g.perSchool.length}개교</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-cream-100 text-left text-ink-muted">
+              <tr>
+                <th className="px-5 py-3 font-semibold">학교</th>
+                <th className="px-5 py-3 font-semibold">지역</th>
+                <th className="px-5 py-3 text-right font-semibold">가입 학생</th>
+                <th className="px-5 py-3 text-right font-semibold">접속 중</th>
+                <th className="px-5 py-3 text-right font-semibold">질문</th>
+                <th className="px-5 py-3 text-right font-semibold">답변 완료</th>
+                <th className="px-5 py-3 font-semibold">접속코드</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-line">
+              {g.perSchool.map((s) => (
+                <tr key={s.id}>
+                  <td className="px-5 py-3 font-semibold">{s.name}</td>
+                  <td className="px-5 py-3 text-ink-soft">{s.region ?? "-"}</td>
+                  <td className="px-5 py-3 text-right font-bold">{s.students}</td>
+                  <td className="px-5 py-3 text-right">
+                    <span className={s.online > 0 ? "font-bold text-emerald-600" : "text-ink-muted"}>
+                      {s.online}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-right text-ink-soft">{s.questions}</td>
+                  <td className="px-5 py-3 text-right text-ink-soft">{s.answered}</td>
+                  <td className="px-5 py-3 font-mono text-xs tracking-wider text-brand-500">
+                    {s.code}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* 화상 교육장 출석 로그 (전체) */}
+      <section className="mt-8 card overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-line p-5">
+          <div>
+            <h2 className="text-lg font-extrabold">화상 교육장 출석 로그</h2>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              테스트 회차{testTalkTopic ? ` · ${testTalkTopic}` : ""} · 전체 학교
+            </p>
+          </div>
+          <span className="text-sm text-ink-muted">
+            참여 {attendUnique}명 · 기록 {attendance.length}건
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-cream-100 text-left text-ink-muted">
+              <tr>
+                <th className="px-5 py-3 font-semibold">이름</th>
+                <th className="px-5 py-3 font-semibold">학교</th>
+                <th className="px-5 py-3 font-semibold">입장</th>
+                <th className="px-5 py-3 font-semibold">퇴장</th>
+                <th className="px-5 py-3 font-semibold">참여 시간</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink-line">
+              {attendance.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-5 py-8 text-center text-ink-muted">
+                    아직 화상 교육장 입장 기록이 없습니다.
+                  </td>
+                </tr>
+              )}
+              {attendance.map((a) => (
+                <tr key={a.id}>
+                  <td className="px-5 py-3 font-semibold">{a.userName}</td>
+                  <td className="px-5 py-3 text-ink-soft">
+                    {g.schoolNameById.get(a.schoolId) ?? "-"}
+                  </td>
+                  <td className="px-5 py-3 text-ink-soft">{formatKST(a.joinedAt)}</td>
+                  <td className="px-5 py-3 text-ink-soft">{a.leftAt ? formatKST(a.leftAt) : "—"}</td>
+                  <td className="px-5 py-3">
+                    <span
+                      className={`text-xs font-semibold ${
+                        a.leftAt ? "text-ink-soft" : "text-emerald-600"
+                      }`}
+                    >
+                      {durationLabel(a)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

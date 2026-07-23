@@ -435,6 +435,48 @@ export async function schoolPayouts(schoolId: string): Promise<PayoutRecord[]> {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+// ── 전체(연합) 관리자 집계 ───────────────────────────────
+export async function globalStats() {
+  const [allUsers, allQuestions, allAnswers, schools] = await Promise.all([
+    all<User>("users"),
+    all<Question>("questions"),
+    all<Answer>("answers"),
+    all<School>("schools"),
+  ]);
+  const students = allUsers.filter((u) => u.role === "student");
+  const answeredIds = new Set(allAnswers.map((a) => a.questionId));
+  const now = Date.now();
+  const onlineWindowMs = 15 * 60 * 1000;
+  const isOnline = (u: User) => now - new Date(u.lastActiveAt).getTime() < onlineWindowMs;
+
+  const perSchool = schools
+    .map((sc) => {
+      const sStudents = students.filter((u) => u.schoolId === sc.id);
+      const sQuestions = allQuestions.filter((q) => q.schoolId === sc.id);
+      return {
+        id: sc.id,
+        name: sc.name,
+        code: sc.code,
+        region: sc.region,
+        students: sStudents.length,
+        online: sStudents.filter(isOnline).length,
+        questions: sQuestions.length,
+        answered: sQuestions.filter((q) => answeredIds.has(q.id)).length,
+      };
+    })
+    .sort((a, b) => b.students - a.students || a.name.localeCompare(b.name));
+
+  return {
+    schoolCount: schools.length,
+    totalStudents: students.length,
+    onlineNow: students.filter(isOnline).length,
+    totalQuestions: allQuestions.length,
+    answeredQuestions: allQuestions.filter((q) => answeredIds.has(q.id)).length,
+    perSchool,
+    schoolNameById: new Map(schools.map((s) => [s.id, s.name])),
+  };
+}
+
 // ── 관리자 대시보드 집계 ─────────────────────────────────
 export async function schoolStats(schoolId: string) {
   const [allUsers, allQuestions, allAnswers, school] = await Promise.all([
