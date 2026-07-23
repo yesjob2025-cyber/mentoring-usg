@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getMentorById, listPublicQuestions } from "@/lib/repo";
 import { toPublicMentor } from "@/lib/view";
 import { maskName } from "@/lib/mask";
+import { displayAuthor } from "@/lib/author";
 import { MentorTagBadges } from "@/components/mentor-badges";
 
 export async function generateMetadata({
@@ -101,7 +102,7 @@ export default async function MentorPage({
                 <Link href={`/questions/${q.id}`} className="card block p-4 transition hover:shadow-pop">
                   <p className="font-semibold">{q.title}</p>
                   <p className="mt-1 text-xs text-ink-muted">
-                    {q.authorName} · ♥ {q.likes}
+                    {displayAuthor(q)} · ♥ {q.likes}
                   </p>
                 </Link>
               </li>

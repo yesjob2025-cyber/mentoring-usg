@@ -214,36 +214,13 @@ export async function createQuestion(input: {
   return { question: q, tokens };
 }
 
+// 질문은 항상 공개 → 모든 질문을 게시판에 노출 (isPublic 은 작성자 이름 공개 여부일 뿐)
 export async function listPublicQuestions(filter?: {
   category?: ThemeKind | "mentor";
   themeId?: string;
   mentorId?: string;
 }): Promise<Question[]> {
-  let qs = (await all<Question>("questions")).filter((q) => q.isPublic);
-  if (filter?.category) qs = qs.filter((q) => q.category === filter.category);
-  if (filter?.themeId) qs = qs.filter((q) => Object.values(q.themeRefs).includes(filter.themeId!));
-  if (filter?.mentorId) qs = qs.filter((q) => q.targetMentorIds.includes(filter.mentorId!));
-  return qs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-/**
- * 게시판 노출용 질문 목록 (열람 권한 반영)
- *  - 전체 관리자: 비공개 포함 전체
- *  - 학교 관리자: 공개 질문 + 자기 학교 학생의 비공개 질문
- *  - 그 외: 공개 질문만
- */
-export async function listBoardQuestions(
-  viewer: { role?: string; schoolId?: string },
-  filter?: { category?: ThemeKind | "mentor"; themeId?: string; mentorId?: string }
-): Promise<Question[]> {
   let qs = await all<Question>("questions");
-  if (viewer.role === "superadmin") {
-    // 전체 열람
-  } else if (viewer.role === "admin") {
-    qs = qs.filter((q) => q.isPublic || q.schoolId === viewer.schoolId);
-  } else {
-    qs = qs.filter((q) => q.isPublic);
-  }
   if (filter?.category) qs = qs.filter((q) => q.category === filter.category);
   if (filter?.themeId) qs = qs.filter((q) => Object.values(q.themeRefs).includes(filter.themeId!));
   if (filter?.mentorId) qs = qs.filter((q) => q.targetMentorIds.includes(filter.mentorId!));
@@ -398,10 +375,7 @@ export async function adoptAnswer(answerId: string, amount: number, grade: strin
 // ── 우수 질문/답변 ───────────────────────────────────────
 export async function topQuestions(limit = 5): Promise<Question[]> {
   const rows = await all<Question>("questions");
-  return rows
-    .filter((q) => q.isPublic)
-    .sort((a, b) => b.likes - a.likes)
-    .slice(0, limit);
+  return rows.sort((a, b) => b.likes - a.likes).slice(0, limit);
 }
 
 // ── 토크콘서트 ───────────────────────────────────────────

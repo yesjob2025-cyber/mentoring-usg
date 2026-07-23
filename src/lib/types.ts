@@ -91,7 +91,7 @@ export interface Question {
   title: string;
   body: string;
   targetMentorIds: string[]; // 발송 대상 멘토
-  isPublic: boolean; // 전체 공개 여부
+  isPublic: boolean; // 작성자 이름 공개 여부 (질문/답변 본문은 항상 게시판 공개)
   status: "open" | "answered" | "closed";
   likes: number;
   createdAt: string;

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listBoardQuestions, answerCountByQuestion, topQuestions } from "@/lib/repo";
+import { listPublicQuestions, answerCountByQuestion, topQuestions } from "@/lib/repo";
 import { getSession } from "@/lib/session";
 import { themeName, themeMeta } from "@/lib/taxonomy";
 import { formatKSTDate } from "@/lib/format";
+import { displayAuthor } from "@/lib/author";
 import type { ThemeKind } from "@/lib/types";
 import { DeleteQuestionButton } from "./[id]/delete-question-button";
 
@@ -32,10 +33,7 @@ export default async function QuestionsPage({
   const isSuperAdmin = session?.role === "superadmin";
   const isAdmin = session?.role === "admin" || isSuperAdmin;
   const [questions, top, answerCounts] = await Promise.all([
-    listBoardQuestions(
-      { role: session?.role, schoolId: session?.schoolId },
-      active === "all" ? undefined : { category: active as ThemeKind | "mentor" }
-    ),
+    listPublicQuestions(active === "all" ? undefined : { category: active as ThemeKind | "mentor" }),
     topQuestions(3),
     answerCountByQuestion(),
   ]);
@@ -57,7 +55,7 @@ export default async function QuestionsPage({
 
       {isAdmin && (
         <div className="mt-6 rounded-xl border border-ink-line bg-cream-100 px-4 py-3 text-sm text-ink-soft">
-          🔑 관리자 화면: {isSuperAdmin ? "비공개 질문을 포함한 전체 질문" : "공개 질문과 우리 학교 학생의 비공개 질문"}이 함께 표시됩니다.
+          🔑 관리자 화면: 익명 질문도 작성자 실명이 함께 표시됩니다.
         </div>
       )}
 
@@ -69,7 +67,7 @@ export default async function QuestionsPage({
             {top.map((q) => (
               <Link key={q.id} href={`/questions/${q.id}`} className="rounded-xl bg-white p-4 shadow-card transition hover:shadow-pop">
                 <p className="line-clamp-2 font-semibold">{q.title}</p>
-                <p className="mt-2 text-xs text-ink-muted">♥ {q.likes} · {q.authorName}</p>
+                <p className="mt-2 text-xs text-ink-muted">♥ {q.likes} · {displayAuthor(q, isAdmin)}</p>
               </Link>
             ))}
           </div>
@@ -120,7 +118,7 @@ export default async function QuestionsPage({
                     <span className="badge bg-purple-50 text-purple-700">다중질문</span>
                   )}
                   {!q.isPublic && (
-                    <span className="badge bg-ink/10 text-ink-soft">🔒 비공개</span>
+                    <span className="badge bg-ink/10 text-ink-soft">익명</span>
                   )}
                   {chips.slice(0, 3).map((c) => (
                     <span key={c} className="badge bg-brand-50 text-brand-500">
@@ -138,7 +136,7 @@ export default async function QuestionsPage({
                 <h3 className="mt-2 text-lg font-bold">{q.title}</h3>
                 <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{q.body}</p>
                 <p className="mt-3 text-xs text-ink-muted">
-                  {q.authorName} · {formatKSTDate(q.createdAt)} · ♥ {q.likes} · 멘토{" "}
+                  {displayAuthor(q, isAdmin)} · {formatKSTDate(q.createdAt)} · ♥ {q.likes} · 멘토{" "}
                   {q.targetMentorIds.length}명에게 발송
                 </p>
               </Link>

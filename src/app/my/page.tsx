@@ -55,7 +55,7 @@ export default async function MyPage() {
                   >
                     {answerN > 0 ? `답변 ${answerN}` : "답변 대기"}
                   </span>
-                  {!q.isPublic && <span className="badge bg-ink/5 text-ink-muted">비공개</span>}
+                  {!q.isPublic && <span className="badge bg-ink/5 text-ink-muted">익명</span>}
                 </div>
                 <h3 className="mt-2 font-bold">{q.title}</h3>
                 <p className="mt-1 text-xs text-ink-muted">

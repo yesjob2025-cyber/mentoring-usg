@@ -6,6 +6,7 @@ import { getSession } from "@/lib/session";
 import { themeName } from "@/lib/taxonomy";
 import { formatKST } from "@/lib/format";
 import { maskName } from "@/lib/mask";
+import { displayAuthor } from "@/lib/author";
 import { LikeButton } from "./like-button";
 import { AnswerCard } from "./answer-card";
 import { DeleteQuestionButton } from "./delete-question-button";
@@ -63,7 +64,7 @@ export default async function QuestionDetailPage({
         <p className="mt-4 whitespace-pre-wrap leading-relaxed text-ink-soft">{question.body}</p>
         <div className="mt-6 flex items-center justify-between border-t border-ink-line pt-4">
           <p className="text-sm text-ink-muted">
-            {question.authorName} · {formatKST(question.createdAt)}
+            {displayAuthor(question, isAdmin || isSuperAdmin)} · {formatKST(question.createdAt)}
           </p>
           <LikeButton kind="question" id={question.id} questionId={question.id} count={question.likes} />
         </div>

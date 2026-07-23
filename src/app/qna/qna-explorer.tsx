@@ -342,7 +342,7 @@ function ComposePanel({
 }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [isPublic, setIsPublic] = useState(true);
+  const [namemPublic, setNamePublic] = useState(false); // 이름 공개 여부 (기본: 익명)
   const [result, setResult] = useState<
     { ok: true; questionId: string; sent: number } | { ok: false; error: string; needAuth?: boolean } | null
   >(null);
@@ -353,7 +353,13 @@ function ComposePanel({
   function submit() {
     setResult(null);
     startTransition(async () => {
-      const res = await askAction({ refs, targetMentorIds: selectedIds, title, body, isPublic });
+      const res = await askAction({
+        refs,
+        targetMentorIds: selectedIds,
+        title,
+        body,
+        authorPublic: namemPublic,
+      });
       setResult(res);
       if (res.ok) {
         setTitle("");
@@ -433,15 +439,23 @@ function ComposePanel({
             placeholder="궁금한 점을 구체적으로 적어주세요."
           />
         </div>
-        <label className="flex items-center gap-2 text-sm text-ink-soft">
+        <label className="flex items-start gap-2 text-sm text-ink-soft">
           <input
             type="checkbox"
-            checked={isPublic}
-            onChange={(e) => setIsPublic(e.target.checked)}
-            className="h-4 w-4 accent-brand-400"
+            checked={namemPublic}
+            onChange={(e) => setNamePublic(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-brand-400"
           />
-          답변을 게시판에 공개 (다른 학생도 열람)
+          <span>
+            내 이름 공개
+            <span className="ml-1 text-xs text-ink-muted">
+              (체크하지 않으면 <b>익명</b>으로 표시됩니다)
+            </span>
+          </span>
         </label>
+        <p className="text-xs text-ink-muted">
+          ℹ️ 모든 질문과 답변은 게시판에 공개됩니다. 학교는 공개되지 않습니다.
+        </p>
       </div>
 
       {result && !result.ok && (

@@ -35,7 +35,7 @@ export async function askAction(input: {
   targetMentorIds: string[];
   title: string;
   body: string;
-  isPublic: boolean;
+  authorPublic: boolean; // 작성자 이름 공개 여부 (질문 자체는 항상 공개)
 }): Promise<AskResult> {
   const session = await getSession();
   if (!session || session.role !== "student" || !session.uid) {
@@ -77,7 +77,7 @@ export async function askAction(input: {
     title,
     body,
     targetMentorIds: mentors.map((m) => m.id),
-    isPublic: input.isPublic,
+    isPublic: input.authorPublic, // isPublic 필드를 '이름 공개 여부'로 사용
   });
 
   // 각 멘토에게 카카오 알림톡(답변 링크) 발송
