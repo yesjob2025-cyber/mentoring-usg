@@ -397,6 +397,9 @@ type ConfirmedEntry = {
   ind?: string[];
   job?: string[];
   type?: string;
+  // 승인 여부 + 실제 전화번호. 승인된 멘토만 노출·질문 발송 대상.
+  approved?: boolean;
+  phone?: string;
 };
 
 const CONFIRM_PHONE = "010-8553-6027";
@@ -502,12 +505,13 @@ export function buildConfirmedMentors(): Mentor[] {
       career: [`${company} ${title} 재직`, ...duties, education].filter(Boolean),
       mentoringAreas,
       tags,
-      kakaoPhone: CONFIRM_PHONE,
+      kakaoPhone: entry.phone || CONFIRM_PHONE,
       answerCount: 0,
       avgResponseHours: rint(rnd, 4, 24),
       participationScore: rint(rnd, 70, 99),
-      active: true,
-      featured: true,
+      // 승인된 멘토만 노출·질문 발송 (미승인은 숨김)
+      active: entry.approved === true,
+      featured: entry.approved === true,
     } satisfies Mentor;
   });
 }
