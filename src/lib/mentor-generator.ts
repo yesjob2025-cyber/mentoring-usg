@@ -450,7 +450,10 @@ function padDuties(duties: string[], jobNames: string[]): string[] {
 
 export function buildConfirmedMentors(): Mentor[] {
   const pool = confirmedPool as ConfirmedEntry[];
-  return pool.map((entry, idx) => {
+  return pool
+    .map((entry, idx): Mentor | null => {
+    // 명단 제외 대상은 완전히 제외. idx 는 원래 배열 기준 → 나머지 멘토 ID 안정 유지
+    if (entry.removed === true) return null;
     const org = entry.org || "";
     const edu = (entry.edu || "").trim();
     const dutyList = entry.duties || [];
@@ -512,9 +515,10 @@ export function buildConfirmedMentors(): Mentor[] {
       answerCount: 0,
       avgResponseHours: rint(rnd, 4, 24),
       participationScore: rint(rnd, 70, 99),
-      // 명단 제외(조서현·황상욱)만 숨김, 나머지는 미승인이라도 노출
-      active: entry.removed !== true,
-      featured: entry.removed !== true,
+      // 미승인 멘토도 노출 (질문은 공통번호로 발송)
+      active: true,
+      featured: true,
     } satisfies Mentor;
-  });
+    })
+    .filter((m): m is Mentor => m !== null);
 }
