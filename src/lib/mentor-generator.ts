@@ -397,9 +397,11 @@ type ConfirmedEntry = {
   ind?: string[];
   job?: string[];
   type?: string;
-  // 승인 여부 + 실제 전화번호. 승인된 멘토만 노출·질문 발송 대상.
+  // 승인 여부 + 실제 전화번호. 승인 멘토는 실번호, 미승인은 공통번호로 발송.
   approved?: boolean;
   phone?: string;
+  // 명단 제외(숨김) 대상 — 화면·발송에서 완전히 제외.
+  removed?: boolean;
 };
 
 const CONFIRM_PHONE = "010-8553-6027";
@@ -505,13 +507,14 @@ export function buildConfirmedMentors(): Mentor[] {
       career: [`${company} ${title} 재직`, ...duties, education].filter(Boolean),
       mentoringAreas,
       tags,
-      kakaoPhone: entry.phone || CONFIRM_PHONE,
+      // 승인 멘토는 실번호, 미승인 멘토는 공통번호로 질문 발송
+      kakaoPhone: entry.approved ? entry.phone || CONFIRM_PHONE : CONFIRM_PHONE,
       answerCount: 0,
       avgResponseHours: rint(rnd, 4, 24),
       participationScore: rint(rnd, 70, 99),
-      // 승인된 멘토만 노출·질문 발송 (미승인은 숨김)
-      active: entry.approved === true,
-      featured: entry.approved === true,
+      // 명단 제외(조서현·황상욱)만 숨김, 나머지는 미승인이라도 노출
+      active: entry.removed !== true,
+      featured: entry.removed !== true,
     } satisfies Mentor;
   });
 }
