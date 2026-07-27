@@ -1,11 +1,12 @@
 /**
- * 교육사업 준비 자동화 — 올인원(단일 파일) v2.1
+ * 교육사업 준비 자동화 — 올인원(단일 파일) v3
  * =============================================================
  * 빈 구글 시트 → 확장 프로그램 → Apps Script → 이 내용 전체 붙여넣기 → 저장
  * → createSampleChecklist 실행해 권한 허용 → 시트 새로고침(F5) → [교육사업 준비] 메뉴.
  *
- * v2: 데이터 탭 + 산출물 자동생성(보험명단/안내문/강사확인/명찰/배너) + 결과보고서
- * v2.1: 명찰용 CSV 내보내기(미리캔버스/캔바 대량제작 업로드용) 추가
+ * v2 : 데이터 탭 + 산출물 자동생성(보험/안내문/강사확인/명찰/배너) + 결과보고서
+ * v2.1: 명찰용 CSV(미리캔버스/캔바 대량제작)
+ * v3 : 행사 전용 모바일 페이지(오픈채팅 대체) — 이름+학번 입장, 공지/확인, 회차별 출석·지각 자동
  */
 
 // ===== 템플릿 =====
@@ -154,6 +155,13 @@ function onOpen() {
         .addItem('현수막·X배너 문구', 'genBannerCopy')
     )
     .addItem('📊 결과보고서 생성', 'genReport')
+    .addSeparator()
+    .addSubMenu(
+      ui.createMenu('🌐 행사 페이지 (오픈채팅 대체)')
+        .addItem('① 행사 페이지 준비 (탭 생성)', 'setupHub')
+        .addItem('② 배포 방법 안내', 'showDeployHelp')
+        .addItem('③ 참가자 링크·QR 보기', 'showHubLink')
+    )
     .addSeparator()
     .addItem('📂 저장 폴더 지정', 'setFolder')
     .addItem('ℹ️ 사용 안내', 'showHelp')
@@ -1006,6 +1014,304 @@ function genReport() {
   safeOpenUrl_(doc.getUrl(), '결과보고서');
 }
 
+// ===== 행사 허브 페이지 (웹앱) =====
+/**
+ * 행사 전용 모바일 허브 페이지 (오픈채팅 대체)
+ * =============================================================
+ * - 참가자는 "이름 + 학번"으로 입장 (사전 등록된 참석자명단과 대조)
+ * - 단방향: 공지/안내·자료 링크를 보고 [확인] 클릭
+ * - 회차(교시)별 [출석 체크] → 시작시각과 비교해 지각 자동 판정
+ * 모든 기록은 이 사업 시트의 로그 탭에 자동 저장된다.
+ *
+ * 웹앱으로 배포해야 링크가 생성된다. (배포 → 웹 앱 / 실행: 나 / 액세스: 모든 사용자)
+ */
+
+var HUB_SHEETS = {
+  notice: '공지',
+  session: '회차',
+  entryLog: '입장로그',
+  attendLog: '출결로그',
+  ackLog: '확인로그',
+  status: '출결현황'
+};
+var LATE_GRACE_DEFAULT = 10; // 지각 기준(분): 시작 + N분 초과 시 지각
+
+// ── 스프레드시트 핸들 (웹앱 컨텍스트 대비 저장된 ID 우선) ──────
+function getHubSS_() {
+  var id = PropertiesService.getScriptProperties().getProperty('HUB_SS_ID');
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (e) {} }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+// ── 허브 탭 생성 / 초기화 (메뉴에서 실행) ─────────────────────
+function setupHub() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) { throw new Error('구글 시트 안에서 실행해 주세요.'); }
+  PropertiesService.getScriptProperties().setProperty('HUB_SS_ID', ss.getId());
+
+  hubSheetWithHeaders_(ss, HUB_SHEETS.notice,
+    ['제목', '내용', '링크', '고정', '게시일시'],
+    '↓ 참가자 페이지에 보일 공지입니다. 한 줄 = 공지 1건. (고정=Y 는 상단 고정)');
+  hubSheetWithHeaders_(ss, HUB_SHEETS.session,
+    ['회차명', '일자', '시작시각', '종료시각', '장소', '체크인코드', '지각기준(분)'],
+    '↓ 교시/세션. 일자=YYYY-MM-DD, 시작시각=HH:mm. 체크인코드 입력 시 현장코드 필요(온라인은 비워둠).');
+  hubSheetWithHeaders_(ss, HUB_SHEETS.entryLog, ['입장시각', '이름', '학번'], null);
+  hubSheetWithHeaders_(ss, HUB_SHEETS.attendLog, ['체크인시각', '이름', '학번', '회차', '상태'], null);
+  hubSheetWithHeaders_(ss, HUB_SHEETS.ackLog, ['확인시각', '이름', '학번', '공지'], null);
+
+  buildStatusSheet_(ss);
+  SpreadsheetApp.getUi().alert(
+    '행사 페이지 탭이 준비되었습니다.\n\n' +
+    '① 공지/회차 탭을 채우세요.\n' +
+    '② 상단 메뉴 [🌐 행사 페이지 → 배포 방법]을 따라 웹앱으로 배포하면 참가자 링크·QR이 생성됩니다.'
+  );
+}
+
+function hubSheetWithHeaders_(ss, name, headers, guide) {
+  var sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  var headerRow = guide ? 2 : 1;
+  if (guide) {
+    sh.getRange(1, 1, 1, headers.length).merge().setValue(guide)
+      .setFontColor('#64748b').setFontStyle('italic').setBackground('#f1f5f9');
+  }
+  sh.getRange(headerRow, 1, 1, headers.length).setValues([headers])
+    .setFontWeight('bold').setBackground('#334155').setFontColor('#ffffff');
+  sh.setFrozenRows(headerRow);
+  return sh;
+}
+
+function buildStatusSheet_(ss) {
+  var sh = ss.getSheetByName(HUB_SHEETS.status) || ss.insertSheet(HUB_SHEETS.status);
+  sh.clear();
+  var L = "'" + HUB_SHEETS.attendLog + "'";
+  sh.getRange('A1').setValue('회차별 출결 집계').setFontWeight('bold').setFontSize(12);
+  sh.getRange('A2').setFormula(
+    "=IFERROR(QUERY(" + L + "!A3:E, \"select D, E, count(A) where A is not null group by D, E label count(A) '인원'\", 0), \"아직 출결 기록 없음\")");
+  sh.getRange('E1').setValue('지각자 명단').setFontWeight('bold').setFontSize(12);
+  sh.getRange('E2').setFormula(
+    "=IFERROR(QUERY(" + L + "!A3:E, \"select B, C, D, A where E='지각'\", 0), \"지각자 없음\")");
+  sh.setColumnWidths(1, 8, 130);
+}
+
+// ── 웹앱 진입점 ───────────────────────────────────────────────
+function doGet(e) {
+  return HtmlService.createHtmlOutput(getHubHtml())
+    .setTitle('행사 안내')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ── 참가자 링크 / QR / 배포 안내 ──────────────────────────────
+function showHubLink() {
+  var url = '';
+  try { url = ScriptApp.getService().getUrl(); } catch (e) {}
+  var ui = SpreadsheetApp.getUi();
+  if (!url) {
+    ui.alert('아직 웹앱이 배포되지 않았습니다.\n[🌐 행사 페이지 → 배포 방법]을 먼저 진행하세요.');
+    return;
+  }
+  var qr = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(url);
+  var html = HtmlService.createHtmlOutput(
+    '<div style="font-family:sans-serif;padding:16px;text-align:center">' +
+    '<div style="font-weight:800;margin-bottom:10px">참가자 링크 · QR</div>' +
+    '<img src="' + qr + '" style="width:220px;height:220px;border:1px solid #eee;border-radius:10px"><br>' +
+    '<div style="margin-top:12px;font-size:12px;word-break:break-all"><a href="' + url + '" target="_blank">' + url + '</a></div>' +
+    '<div style="margin-top:10px;font-size:12px;color:#64748b">이 QR/링크를 오픈채팅·안내문에 넣으면 참가자가 입장합니다.</div></div>'
+  ).setWidth(320).setHeight(360);
+  ui.showModalDialog(html, '참가자 링크 · QR');
+}
+
+function showDeployHelp() {
+  SpreadsheetApp.getUi().alert(
+    '행사 페이지 웹앱 배포 (최초 1회)\n\n' +
+    '1) 상단 메뉴 확장 프로그램 → Apps Script 열기\n' +
+    '2) 오른쪽 위 [배포] → [새 배포]\n' +
+    '3) 유형 선택(⚙️) → "웹 앱"\n' +
+    '4) 실행 계정: 나 / 액세스 권한: "모든 사용자"\n' +
+    '5) [배포] → 권한 허용\n' +
+    '6) 생성된 웹 앱 URL 이 참가자 링크입니다.\n\n' +
+    '그 후 시트 메뉴 [🌐 행사 페이지 → 참가자 링크·QR 보기]에서 QR을 확인하세요.\n' +
+    '※ 공지/회차를 수정하면 바로 반영됩니다. 코드를 바꾼 경우에만 [배포 관리 → 편집 → 새 버전]으로 갱신하세요.'
+  );
+}
+
+// ── 공통 유틸 ─────────────────────────────────────────────────
+function normId_(v) { return String(v == null ? '' : v).replace(/\.0+$/, '').replace(/\s/g, ''); }
+function normName_(v) { return String(v == null ? '' : v).replace(/\s/g, '').trim(); }
+function hubNow_() { return new Date(); }
+function hubTs_(d) { return Utilities.formatDate(d || new Date(), Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd HH:mm:ss'); }
+
+function readTableRow1_(sh) {
+  if (!sh || sh.getLastRow() < 1) return [];
+  var headerRow = 1;
+  // guide가 1행이면 헤더는 2행
+  var firstA = String(sh.getRange(1, 1).getValue() || '');
+  if (firstA.indexOf('↓') === 0) headerRow = 2;
+  if (sh.getLastRow() <= headerRow) return [];
+  var headers = sh.getRange(headerRow, 1, 1, sh.getLastColumn()).getValues()[0].map(function (h) { return String(h).trim(); });
+  var data = sh.getRange(headerRow + 1, 1, sh.getLastRow() - headerRow, sh.getLastColumn()).getValues();
+  var rows = [];
+  data.forEach(function (r) {
+    if (r.every(function (c) { return c === '' || c === null; })) return;
+    var o = {}; headers.forEach(function (h, i) { if (h) o[h] = r[i]; }); rows.push(o);
+  });
+  return rows;
+}
+
+/** 명단 대조: 이름+학번이 참석자명단에 있으면 true */
+function validateStudent_(ss, name, sid) {
+  var roster = readTable_(ss, '참석자명단');
+  var n = normName_(name), s = normId_(sid);
+  if (!n || !s) return false;
+  for (var i = 0; i < roster.length; i++) {
+    if (normName_(roster[i]['성명']) === n && normId_(roster[i]['학번']) === s) return true;
+  }
+  return false;
+}
+
+// ── 참가자 API (웹페이지에서 google.script.run 으로 호출) ──────
+
+function hubEnter(name, sid) {
+  var ss = getHubSS_();
+  if (!validateStudent_(ss, name, sid)) {
+    return { ok: false, msg: '등록된 명단에서 이름/학번을 찾을 수 없습니다. 담당자에게 문의하세요.' };
+  }
+  appendRow_(ss, HUB_SHEETS.entryLog, [hubTs_(), name, "'" + normId_(sid)]);
+  return { ok: true };
+}
+
+function hubState(name, sid) {
+  var ss = getHubSS_();
+  if (!validateStudent_(ss, name, sid)) return { ok: false };
+  var project = projectName_(ss);
+
+  // 공지
+  var notices = readTableRow1_(ss.getSheetByName(HUB_SHEETS.notice)).map(function (r) {
+    return {
+      title: String(r['제목'] || ''),
+      content: String(r['내용'] || ''),
+      link: String(r['링크'] || ''),
+      pinned: /^y|참|고정|true/i.test(String(r['고정'] || ''))
+    };
+  }).filter(function (x) { return x.title || x.content; });
+  notices.sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); });
+
+  // 오늘 회차 + 내 체크인 상태
+  var myAttend = attendMapFor_(ss, name, sid);
+  var todayStr = Utilities.formatDate(hubNow_(), Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd');
+  var sessions = readTableRow1_(ss.getSheetByName(HUB_SHEETS.session)).map(function (r) {
+    var dateStr = toDateStr_(r['일자']);
+    var start = sessionStart_(r['일자'], r['시작시각']);
+    return {
+      name: String(r['회차명'] || ''),
+      dateStr: dateStr,
+      startStr: toTimeStr_(r['시작시각']),
+      place: String(r['장소'] || ''),
+      needCode: String(r['체크인코드'] || '') !== '',
+      isToday: dateStr === todayStr,
+      startMs: start ? start.getTime() : 0,
+      myStatus: myAttend[String(r['회차명'] || '')] || ''
+    };
+  }).filter(function (x) { return x.name; });
+
+  return { ok: true, project: project, notices: notices, sessions: sessions, now: hubTs_() };
+}
+
+function hubAck(name, sid, title) {
+  var ss = getHubSS_();
+  if (!validateStudent_(ss, name, sid)) return { ok: false };
+  if (hasLog_(ss, HUB_SHEETS.ackLog, name, sid, title, 4)) return { ok: true, dup: true };
+  appendRow_(ss, HUB_SHEETS.ackLog, [hubTs_(), name, "'" + normId_(sid), title]);
+  return { ok: true };
+}
+
+function hubCheckin(name, sid, sessionName, code) {
+  var ss = getHubSS_();
+  if (!validateStudent_(ss, name, sid)) return { ok: false, msg: '인증 실패' };
+
+  var srow = findSession_(ss, sessionName);
+  if (!srow) return { ok: false, msg: '회차를 찾을 수 없습니다.' };
+
+  var need = String(srow['체크인코드'] || '');
+  if (need !== '' && normName_(code) !== normName_(need)) {
+    return { ok: false, msg: '현장 체크인 코드가 올바르지 않습니다.' };
+  }
+  if (hasLog_(ss, HUB_SHEETS.attendLog, name, sid, sessionName, 4)) {
+    return { ok: true, dup: true, status: existingStatus_(ss, name, sid, sessionName) };
+  }
+
+  var start = sessionStart_(srow['일자'], srow['시작시각']);
+  var grace = Number(srow['지각기준(분)']) || LATE_GRACE_DEFAULT;
+  var status = '출석';
+  if (start && hubNow_().getTime() > start.getTime() + grace * 60000) status = '지각';
+
+  appendRow_(ss, HUB_SHEETS.attendLog, [hubTs_(), name, "'" + normId_(sid), sessionName, status]);
+  return { ok: true, status: status };
+}
+
+// ── 로그 헬퍼 ─────────────────────────────────────────────────
+function appendRow_(ss, sheetName, row) {
+  var sh = ss.getSheetByName(sheetName);
+  if (!sh) sh = hubSheetWithHeaders_(ss, sheetName, row.map(function () { return ''; }), null);
+  sh.appendRow(row);
+}
+function hasLog_(ss, sheetName, name, sid, key, keyCol) {
+  var sh = ss.getSheetByName(sheetName);
+  if (!sh || sh.getLastRow() < 2) return false;
+  var vals = sh.getDataRange().getValues();
+  var n = normName_(name), s = normId_(sid), k = normName_(key);
+  for (var i = 1; i < vals.length; i++) {
+    if (normName_(vals[i][1]) === n && normId_(vals[i][2]) === s && normName_(vals[i][keyCol - 1]) === k) return true;
+  }
+  return false;
+}
+function existingStatus_(ss, name, sid, sessionName) {
+  var sh = ss.getSheetByName(HUB_SHEETS.attendLog);
+  if (!sh) return '';
+  var vals = sh.getDataRange().getValues();
+  var n = normName_(name), s = normId_(sid), k = normName_(sessionName);
+  for (var i = 1; i < vals.length; i++) {
+    if (normName_(vals[i][1]) === n && normId_(vals[i][2]) === s && normName_(vals[i][3]) === k) return String(vals[i][4] || '');
+  }
+  return '';
+}
+function attendMapFor_(ss, name, sid) {
+  var out = {};
+  var sh = ss.getSheetByName(HUB_SHEETS.attendLog);
+  if (!sh || sh.getLastRow() < 2) return out;
+  var vals = sh.getDataRange().getValues();
+  var n = normName_(name), s = normId_(sid);
+  for (var i = 1; i < vals.length; i++) {
+    if (normName_(vals[i][1]) === n && normId_(vals[i][2]) === s) out[String(vals[i][3])] = String(vals[i][4] || '');
+  }
+  return out;
+}
+function findSession_(ss, sessionName) {
+  var rows = readTableRow1_(ss.getSheetByName(HUB_SHEETS.session));
+  for (var i = 0; i < rows.length; i++) if (String(rows[i]['회차명']) === sessionName) return rows[i];
+  return null;
+}
+
+// ── 날짜/시각 파싱 ────────────────────────────────────────────
+function toDateStr_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd');
+  var m = String(v || '').match(/(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);
+  if (!m) return '';
+  return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+}
+function toTimeStr_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone() || 'Asia/Seoul', 'HH:mm');
+  var m = String(v || '').match(/(\d{1,2}):(\d{2})/);
+  return m ? (('0' + m[1]).slice(-2) + ':' + m[2]) : '';
+}
+function sessionStart_(dateVal, timeVal) {
+  var ds = toDateStr_(dateVal), ts = toTimeStr_(timeVal);
+  if (!ds) return null;
+  var dm = ds.split('-'), tm = (ts || '00:00').split(':');
+  return new Date(Number(dm[0]), Number(dm[1]) - 1, Number(dm[2]), Number(tm[0]), Number(tm[1]));
+}
+
 // ── 입력 다이얼로그 HTML (인라인) ─────
 function getDialogHtml() {
   return `<!DOCTYPE html>
@@ -1131,6 +1437,191 @@ function getDialogHtml() {
         .generateChecklist(form);
     });
   </script>
+</body>
+</html>
+`;
+}
+
+// ── 행사 허브 페이지 HTML (인라인) ─────
+function getHubHtml() {
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#f1f5f9;color:#1e293b;}
+  .wrap{max-width:520px;margin:0 auto;min-height:100vh;background:#f1f5f9;}
+  header{background:linear-gradient(135deg,#1f43ad,#3b6ef5);color:#fff;padding:18px 18px 16px;position:sticky;top:0;z-index:5;}
+  header .t{font-size:17px;font-weight:800;line-height:1.3;}
+  header .s{font-size:12px;opacity:.85;margin-top:3px;}
+  .body{padding:16px;}
+  .card{background:#fff;border-radius:14px;padding:15px 16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(15,23,42,.06);}
+  .card h3{font-size:15px;margin-bottom:6px;}
+  .card p{font-size:13px;color:#475569;line-height:1.55;white-space:pre-wrap;}
+  .pin{display:inline-block;font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:2px 7px;margin-bottom:6px;}
+  .lnk{display:inline-block;margin-top:9px;font-size:13px;font-weight:700;color:#2b57d6;text-decoration:none;}
+  .btn{display:block;width:100%;padding:13px;border:none;border-radius:11px;font-size:15px;font-weight:800;background:#2b57d6;color:#fff;cursor:pointer;}
+  .btn:disabled{opacity:.5;}
+  .btn.ghost{background:#e2e8f0;color:#334155;}
+  .btn.ok{background:#16a34a;}
+  .btn.sm{padding:9px 14px;font-size:13px;width:auto;border-radius:9px;}
+  .sec{font-size:12px;font-weight:800;color:#64748b;margin:18px 2px 8px;letter-spacing:.3px;}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;margin-top:8px;}
+  .field label{font-size:12px;font-weight:700;color:#475569;}
+  .ackbtn{border:1px solid #2b57d6;background:#fff;color:#2b57d6;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;}
+  .ackdone{border:1px solid #16a34a;background:#f0fdf4;color:#16a34a;}
+  .badge{font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;}
+  .b-att{background:#dcfce7;color:#166534;}
+  .b-late{background:#fee2e2;color:#b91c1c;}
+  .b-none{background:#f1f5f9;color:#64748b;}
+  .meta{font-size:11px;color:#94a3b8;margin-top:2px;}
+  .msg{font-size:13px;color:#dc2626;margin-top:10px;text-align:center;min-height:18px;}
+  .center{text-align:center;}
+  .logo{width:52px;height:52px;border-radius:14px;background:#2b57d6;color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px;margin:26px auto 12px;}
+  .foot{text-align:center;font-size:11px;color:#94a3b8;padding:16px;}
+  .dim{opacity:.55;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- 입장 화면 -->
+  <div id="enter" class="body">
+    <div class="logo">YJ</div>
+    <h2 class="center" style="font-size:18px;">행사 안내 페이지</h2>
+    <p class="center" style="font-size:13px;color:#64748b;margin-top:6px;">등록된 <b>이름과 학번</b>으로 입장하세요.</p>
+    <div class="card" style="margin-top:18px;">
+      <div class="field"><label>이름</label><input id="in-name" placeholder="예: 홍길동" autocomplete="off"></div>
+      <div class="field" style="margin-top:10px;"><label>학번</label><input id="in-sid" placeholder="예: 202411726" inputmode="numeric" autocomplete="off"></div>
+      <button class="btn" id="enterBtn" style="margin-top:16px;">입장하기</button>
+      <div class="msg" id="enterMsg"></div>
+    </div>
+  </div>
+
+  <!-- 허브 화면 -->
+  <div id="hub" style="display:none;">
+    <header>
+      <div class="t" id="projTitle">행사</div>
+      <div class="s" id="whoami"></div>
+    </header>
+    <div class="body">
+      <div class="sec">📢 공지 · 안내</div>
+      <div id="notices"></div>
+
+      <div class="sec">✅ 출석 체크</div>
+      <div id="sessions"></div>
+
+      <button class="btn ghost" id="refreshBtn" style="margin-top:8px;">새로고침</button>
+      <div class="foot">이 페이지는 실시간으로 갱신됩니다.<br><span id="logoutLink" style="text-decoration:underline;cursor:pointer;">다른 사람으로 입장</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var ME = { name:'', sid:'' };
+  var LATEST = null;
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // 저장된 로그인 복원
+  try {
+    var saved = JSON.parse(localStorage.getItem('hub_me')||'null');
+    if (saved && saved.name && saved.sid) { ME = saved; showHub(); loadState(); }
+  } catch(e){}
+
+  $('enterBtn').onclick = function(){
+    var name = $('in-name').value.trim();
+    var sid = $('in-sid').value.trim();
+    if(!name || !sid){ $('enterMsg').textContent='이름과 학번을 모두 입력하세요.'; return; }
+    $('enterBtn').disabled=true; $('enterBtn').textContent='확인 중…'; $('enterMsg').textContent='';
+    google.script.run.withSuccessHandler(function(res){
+      $('enterBtn').disabled=false; $('enterBtn').textContent='입장하기';
+      if(!res || !res.ok){ $('enterMsg').textContent=(res&&res.msg)||'입장할 수 없습니다.'; return; }
+      ME={name:name,sid:sid};
+      try{ localStorage.setItem('hub_me', JSON.stringify(ME)); }catch(e){}
+      showHub(); loadState();
+    }).withFailureHandler(function(err){
+      $('enterBtn').disabled=false; $('enterBtn').textContent='입장하기';
+      $('enterMsg').textContent='오류: '+err.message;
+    }).hubEnter(name, sid);
+  };
+
+  $('logoutLink').onclick = function(){ try{localStorage.removeItem('hub_me');}catch(e){} location.reload(); };
+  $('refreshBtn').onclick = function(){ loadState(); };
+
+  function showHub(){ $('enter').style.display='none'; $('hub').style.display='block'; }
+
+  function loadState(){
+    google.script.run.withSuccessHandler(render).withFailureHandler(function(){}).hubState(ME.name, ME.sid);
+  }
+
+  function render(st){
+    if(!st || !st.ok) return;
+    LATEST = st;
+    $('projTitle').textContent = st.project || '행사 안내';
+    $('whoami').textContent = ME.name + ' · ' + ME.sid + ' 님 입장 중';
+
+    // 공지
+    var nc = $('notices');
+    if(!st.notices.length){ nc.innerHTML='<div class="card dim"><p>등록된 공지가 없습니다.</p></div>'; }
+    else {
+      nc.innerHTML='';
+      st.notices.forEach(function(n){
+        var d=document.createElement('div'); d.className='card';
+        var h = (n.pinned?'<span class="pin">📌 고정</span><br>':'')+'<h3>'+esc(n.title)+'</h3>';
+        if(n.content) h+='<p>'+esc(n.content)+'</p>';
+        if(n.link) h+='<a class="lnk" href="'+esc(n.link)+'" target="_blank">🔗 링크 열기</a>';
+        h+='<div class="row" style="margin-top:11px;"><span class="meta">읽으셨으면 확인을 눌러주세요</span>'
+          +'<button class="ackbtn" data-t="'+esc(n.title)+'">확인</button></div>';
+        d.innerHTML=h; nc.appendChild(d);
+      });
+      Array.prototype.forEach.call(nc.querySelectorAll('.ackbtn'), function(b){
+        b.onclick=function(){
+          b.disabled=true; b.textContent='...';
+          google.script.run.withSuccessHandler(function(){
+            b.textContent='확인됨 ✓'; b.className='ackbtn ackdone';
+          }).withFailureHandler(function(){ b.disabled=false; b.textContent='확인'; }).hubAck(ME.name, ME.sid, b.getAttribute('data-t'));
+        };
+      });
+    }
+
+    // 회차/출석
+    var sc = $('sessions'); sc.innerHTML='';
+    var todays = st.sessions.filter(function(s){ return s.isToday; });
+    var list = todays.length ? todays : st.sessions;
+    if(!list.length){ sc.innerHTML='<div class="card dim"><p>등록된 회차가 없습니다.</p></div>'; return; }
+    list.forEach(function(s){
+      var d=document.createElement('div'); d.className='card';
+      var badge = s.myStatus==='출석' ? '<span class="badge b-att">출석 완료</span>'
+                : s.myStatus==='지각' ? '<span class="badge b-late">지각</span>'
+                : '<span class="badge b-none">미체크</span>';
+      var right = s.myStatus
+        ? badge
+        : '<button class="btn ok sm" data-s="'+esc(s.name)+'" data-code="'+(s.needCode?'1':'0')+'">출석 체크</button>';
+      d.innerHTML='<div class="row"><div><h3>'+esc(s.name)+'</h3><div class="meta">'
+        +esc(s.dateStr)+' '+esc(s.startStr)+(s.place?(' · '+esc(s.place)):'')+'</div></div><div>'+right+'</div></div>';
+      sc.appendChild(d);
+    });
+    Array.prototype.forEach.call(sc.querySelectorAll('button[data-s]'), function(b){
+      b.onclick=function(){
+        var sname=b.getAttribute('data-s'); var code='';
+        if(b.getAttribute('data-code')==='1'){ code=prompt('현장 체크인 코드를 입력하세요'); if(code===null) return; }
+        b.disabled=true; b.textContent='체크 중…';
+        google.script.run.withSuccessHandler(function(res){
+          if(res && res.ok){ loadState(); }
+          else { alert((res&&res.msg)||'체크인 실패'); b.disabled=false; b.textContent='출석 체크'; }
+        }).withFailureHandler(function(err){ alert('오류: '+err.message); b.disabled=false; b.textContent='출석 체크'; })
+        .hubCheckin(ME.name, ME.sid, sname, code);
+      };
+    });
+  }
+
+  // 30초마다 자동 갱신
+  setInterval(function(){ if($('hub').style.display!=='none') loadState(); }, 30000);
+</script>
 </body>
 </html>
 `;

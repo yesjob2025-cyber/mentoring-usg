@@ -37,6 +37,13 @@ function onOpen() {
     )
     .addItem('📊 결과보고서 생성', 'genReport')
     .addSeparator()
+    .addSubMenu(
+      ui.createMenu('🌐 행사 페이지 (오픈채팅 대체)')
+        .addItem('① 행사 페이지 준비 (탭 생성)', 'setupHub')
+        .addItem('② 배포 방법 안내', 'showDeployHelp')
+        .addItem('③ 참가자 링크·QR 보기', 'showHubLink')
+    )
+    .addSeparator()
     .addItem('📂 저장 폴더 지정', 'setFolder')
     .addItem('ℹ️ 사용 안내', 'showHelp')
     .addToUi();

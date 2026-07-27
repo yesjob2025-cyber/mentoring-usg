@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#f1f5f9;color:#1e293b;}
+  .wrap{max-width:520px;margin:0 auto;min-height:100vh;background:#f1f5f9;}
+  header{background:linear-gradient(135deg,#1f43ad,#3b6ef5);color:#fff;padding:18px 18px 16px;position:sticky;top:0;z-index:5;}
+  header .t{font-size:17px;font-weight:800;line-height:1.3;}
+  header .s{font-size:12px;opacity:.85;margin-top:3px;}
+  .body{padding:16px;}
+  .card{background:#fff;border-radius:14px;padding:15px 16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(15,23,42,.06);}
+  .card h3{font-size:15px;margin-bottom:6px;}
+  .card p{font-size:13px;color:#475569;line-height:1.55;white-space:pre-wrap;}
+  .pin{display:inline-block;font-size:11px;font-weight:700;color:#b45309;background:#fef3c7;border-radius:6px;padding:2px 7px;margin-bottom:6px;}
+  .lnk{display:inline-block;margin-top:9px;font-size:13px;font-weight:700;color:#2b57d6;text-decoration:none;}
+  .btn{display:block;width:100%;padding:13px;border:none;border-radius:11px;font-size:15px;font-weight:800;background:#2b57d6;color:#fff;cursor:pointer;}
+  .btn:disabled{opacity:.5;}
+  .btn.ghost{background:#e2e8f0;color:#334155;}
+  .btn.ok{background:#16a34a;}
+  .btn.sm{padding:9px 14px;font-size:13px;width:auto;border-radius:9px;}
+  .sec{font-size:12px;font-weight:800;color:#64748b;margin:18px 2px 8px;letter-spacing:.3px;}
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:15px;margin-top:8px;}
+  .field label{font-size:12px;font-weight:700;color:#475569;}
+  .ackbtn{border:1px solid #2b57d6;background:#fff;color:#2b57d6;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;}
+  .ackdone{border:1px solid #16a34a;background:#f0fdf4;color:#16a34a;}
+  .badge{font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;}
+  .b-att{background:#dcfce7;color:#166534;}
+  .b-late{background:#fee2e2;color:#b91c1c;}
+  .b-none{background:#f1f5f9;color:#64748b;}
+  .meta{font-size:11px;color:#94a3b8;margin-top:2px;}
+  .msg{font-size:13px;color:#dc2626;margin-top:10px;text-align:center;min-height:18px;}
+  .center{text-align:center;}
+  .logo{width:52px;height:52px;border-radius:14px;background:#2b57d6;color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px;margin:26px auto 12px;}
+  .foot{text-align:center;font-size:11px;color:#94a3b8;padding:16px;}
+  .dim{opacity:.55;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- 입장 화면 -->
+  <div id="enter" class="body">
+    <div class="logo">YJ</div>
+    <h2 class="center" style="font-size:18px;">행사 안내 페이지</h2>
+    <p class="center" style="font-size:13px;color:#64748b;margin-top:6px;">등록된 <b>이름과 학번</b>으로 입장하세요.</p>
+    <div class="card" style="margin-top:18px;">
+      <div class="field"><label>이름</label><input id="in-name" placeholder="예: 홍길동" autocomplete="off"></div>
+      <div class="field" style="margin-top:10px;"><label>학번</label><input id="in-sid" placeholder="예: 202411726" inputmode="numeric" autocomplete="off"></div>
+      <button class="btn" id="enterBtn" style="margin-top:16px;">입장하기</button>
+      <div class="msg" id="enterMsg"></div>
+    </div>
+  </div>
+
+  <!-- 허브 화면 -->
+  <div id="hub" style="display:none;">
+    <header>
+      <div class="t" id="projTitle">행사</div>
+      <div class="s" id="whoami"></div>
+    </header>
+    <div class="body">
+      <div class="sec">📢 공지 · 안내</div>
+      <div id="notices"></div>
+
+      <div class="sec">✅ 출석 체크</div>
+      <div id="sessions"></div>
+
+      <button class="btn ghost" id="refreshBtn" style="margin-top:8px;">새로고침</button>
+      <div class="foot">이 페이지는 실시간으로 갱신됩니다.<br><span id="logoutLink" style="text-decoration:underline;cursor:pointer;">다른 사람으로 입장</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var ME = { name:'', sid:'' };
+  var LATEST = null;
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // 저장된 로그인 복원
+  try {
+    var saved = JSON.parse(localStorage.getItem('hub_me')||'null');
+    if (saved && saved.name && saved.sid) { ME = saved; showHub(); loadState(); }
+  } catch(e){}
+
+  $('enterBtn').onclick = function(){
+    var name = $('in-name').value.trim();
+    var sid = $('in-sid').value.trim();
+    if(!name || !sid){ $('enterMsg').textContent='이름과 학번을 모두 입력하세요.'; return; }
+    $('enterBtn').disabled=true; $('enterBtn').textContent='확인 중…'; $('enterMsg').textContent='';
+    google.script.run.withSuccessHandler(function(res){
+      $('enterBtn').disabled=false; $('enterBtn').textContent='입장하기';
+      if(!res || !res.ok){ $('enterMsg').textContent=(res&&res.msg)||'입장할 수 없습니다.'; return; }
+      ME={name:name,sid:sid};
+      try{ localStorage.setItem('hub_me', JSON.stringify(ME)); }catch(e){}
+      showHub(); loadState();
+    }).withFailureHandler(function(err){
+      $('enterBtn').disabled=false; $('enterBtn').textContent='입장하기';
+      $('enterMsg').textContent='오류: '+err.message;
+    }).hubEnter(name, sid);
+  };
+
+  $('logoutLink').onclick = function(){ try{localStorage.removeItem('hub_me');}catch(e){} location.reload(); };
+  $('refreshBtn').onclick = function(){ loadState(); };
+
+  function showHub(){ $('enter').style.display='none'; $('hub').style.display='block'; }
+
+  function loadState(){
+    google.script.run.withSuccessHandler(render).withFailureHandler(function(){}).hubState(ME.name, ME.sid);
+  }
+
+  function render(st){
+    if(!st || !st.ok) return;
+    LATEST = st;
+    $('projTitle').textContent = st.project || '행사 안내';
+    $('whoami').textContent = ME.name + ' · ' + ME.sid + ' 님 입장 중';
+
+    // 공지
+    var nc = $('notices');
+    if(!st.notices.length){ nc.innerHTML='<div class="card dim"><p>등록된 공지가 없습니다.</p></div>'; }
+    else {
+      nc.innerHTML='';
+      st.notices.forEach(function(n){
+        var d=document.createElement('div'); d.className='card';
+        var h = (n.pinned?'<span class="pin">📌 고정</span><br>':'')+'<h3>'+esc(n.title)+'</h3>';
+        if(n.content) h+='<p>'+esc(n.content)+'</p>';
+        if(n.link) h+='<a class="lnk" href="'+esc(n.link)+'" target="_blank">🔗 링크 열기</a>';
+        h+='<div class="row" style="margin-top:11px;"><span class="meta">읽으셨으면 확인을 눌러주세요</span>'
+          +'<button class="ackbtn" data-t="'+esc(n.title)+'">확인</button></div>';
+        d.innerHTML=h; nc.appendChild(d);
+      });
+      Array.prototype.forEach.call(nc.querySelectorAll('.ackbtn'), function(b){
+        b.onclick=function(){
+          b.disabled=true; b.textContent='...';
+          google.script.run.withSuccessHandler(function(){
+            b.textContent='확인됨 ✓'; b.className='ackbtn ackdone';
+          }).withFailureHandler(function(){ b.disabled=false; b.textContent='확인'; }).hubAck(ME.name, ME.sid, b.getAttribute('data-t'));
+        };
+      });
+    }
+
+    // 회차/출석
+    var sc = $('sessions'); sc.innerHTML='';
+    var todays = st.sessions.filter(function(s){ return s.isToday; });
+    var list = todays.length ? todays : st.sessions;
+    if(!list.length){ sc.innerHTML='<div class="card dim"><p>등록된 회차가 없습니다.</p></div>'; return; }
+    list.forEach(function(s){
+      var d=document.createElement('div'); d.className='card';
+      var badge = s.myStatus==='출석' ? '<span class="badge b-att">출석 완료</span>'
+                : s.myStatus==='지각' ? '<span class="badge b-late">지각</span>'
+                : '<span class="badge b-none">미체크</span>';
+      var right = s.myStatus
+        ? badge
+        : '<button class="btn ok sm" data-s="'+esc(s.name)+'" data-code="'+(s.needCode?'1':'0')+'">출석 체크</button>';
+      d.innerHTML='<div class="row"><div><h3>'+esc(s.name)+'</h3><div class="meta">'
+        +esc(s.dateStr)+' '+esc(s.startStr)+(s.place?(' · '+esc(s.place)):'')+'</div></div><div>'+right+'</div></div>';
+      sc.appendChild(d);
+    });
+    Array.prototype.forEach.call(sc.querySelectorAll('button[data-s]'), function(b){
+      b.onclick=function(){
+        var sname=b.getAttribute('data-s'); var code='';
+        if(b.getAttribute('data-code')==='1'){ code=prompt('현장 체크인 코드를 입력하세요'); if(code===null) return; }
+        b.disabled=true; b.textContent='체크 중…';
+        google.script.run.withSuccessHandler(function(res){
+          if(res && res.ok){ loadState(); }
+          else { alert((res&&res.msg)||'체크인 실패'); b.disabled=false; b.textContent='출석 체크'; }
+        }).withFailureHandler(function(err){ alert('오류: '+err.message); b.disabled=false; b.textContent='출석 체크'; })
+        .hubCheckin(ME.name, ME.sid, sname, code);
+      };
+    });
+  }
+
+  // 30초마다 자동 갱신
+  setInterval(function(){ if($('hub').style.display!=='none') loadState(); }, 30000);
+</script>
+</body>
+</html>
