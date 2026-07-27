@@ -1,15 +1,11 @@
 /**
- * 교육사업 준비 자동화 — 올인원(단일 파일) v2
+ * 교육사업 준비 자동화 — 올인원(단일 파일) v2.1
  * =============================================================
- * 이 파일 하나만 Apps Script 편집기(Code.gs)에 붙여넣으면 됩니다.
+ * 빈 구글 시트 → 확장 프로그램 → Apps Script → 이 내용 전체 붙여넣기 → 저장
+ * → createSampleChecklist 실행해 권한 허용 → 시트 새로고침(F5) → [교육사업 준비] 메뉴.
  *
- * ★ 반드시 "구글 시트 안에서" 열어야 합니다:
- *   빈 구글 시트 → 확장 프로그램 → Apps Script → 이 내용 전체 붙여넣기 → 저장
- *   → createSampleChecklist 실행해 권한 허용 → 시트 새로고침(F5)
- *   → 상단 [교육사업 준비] 메뉴 사용.
- *
- * v2: 참석자명단/강사·스케줄 데이터 탭 + 산출물 자동생성
- *   (여행자보험 명단·학생 안내문·강사 확인문·명찰·배너 문구) + 결과보고서 자동생성.
+ * v2: 데이터 탭 + 산출물 자동생성(보험명단/안내문/강사확인/명찰/배너) + 결과보고서
+ * v2.1: 명찰용 CSV 내보내기(미리캔버스/캔바 대량제작 업로드용) 추가
  */
 
 // ===== 템플릿 =====
@@ -153,7 +149,8 @@ function onOpen() {
         .addItem('여행자보험 명단', 'genInsurance')
         .addItem('학생 안내문', 'genStudentNotice')
         .addItem('강사 스케줄 확인문', 'genSpeakerConfirm')
-        .addItem('명찰(인쇄용)', 'genNameTags')
+        .addItem('명찰(인쇄용 Doc)', 'genNameTags')
+        .addItem('명찰용 CSV (미리캔버스/캔바 대량제작)', 'genNameTagCSV')
         .addItem('현수막·X배너 문구', 'genBannerCopy')
     )
     .addItem('📊 결과보고서 생성', 'genReport')
@@ -773,6 +770,45 @@ function genNameTags() {
   markChecklist_(ss, '명찰', doc.getUrl(), roster.length + '개 명찰 생성');
   toast_('명찰 ' + roster.length + '개 생성 완료');
   safeOpenUrl_(doc.getUrl(), '명찰');
+}
+
+// ── 4-b) 명찰용 CSV (미리캔버스/캔바 대량제작 업로드용) ────────
+
+function genNameTagCSV() {
+  var ss = activeSS_();
+  var roster = readTable_(ss, '참석자명단');
+  if (!roster.length) { SpreadsheetApp.getUi().alert("'참석자명단' 탭에 참석자를 먼저 입력해 주세요."); return; }
+  var name = projectName_(ss);
+
+  // 명찰에 필요한 열만 (개인정보인 주민번호·연락처·계좌는 제외)
+  var cols = ['성명', '학교', '학과', '학번', '학년', '조'];
+  var lines = [cols.join(',')];
+  roster.forEach(function (r) {
+    lines.push(cols.map(function (c) { return csvCell_(r[c]); }).join(','));
+  });
+  var csv = '﻿' + lines.join('\r\n'); // BOM: 한글 엑셀 호환
+
+  var fileName = '[명찰CSV] ' + name + '.csv';
+  var folder = folderOf_(ss);
+  var file = folder.createFile(fileName, csv, 'text/csv');
+
+  markChecklist_(ss, '명찰', file.getUrl(), roster.length + '명 CSV 생성');
+  toast_('명찰용 CSV ' + roster.length + '행 생성 완료 (다운로드 후 미리캔버스/캔바 대량제작에 업로드)');
+  safeOpenUrl_(file.getUrl(), '명찰용 CSV');
+}
+
+function csvCell_(v) {
+  var s = (v == null) ? '' : String(v);
+  if (/[",\r\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function folderOf_(ss) {
+  try {
+    var parents = DriveApp.getFileById(ss.getId()).getParents();
+    if (parents.hasNext()) return parents.next();
+  } catch (e) {}
+  return DriveApp.getRootFolder();
 }
 
 function nameCardText_(r, projectName) {

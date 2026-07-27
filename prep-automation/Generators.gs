@@ -263,6 +263,45 @@ function genNameTags() {
   safeOpenUrl_(doc.getUrl(), '명찰');
 }
 
+// ── 4-b) 명찰용 CSV (미리캔버스/캔바 대량제작 업로드용) ────────
+
+function genNameTagCSV() {
+  var ss = activeSS_();
+  var roster = readTable_(ss, '참석자명단');
+  if (!roster.length) { SpreadsheetApp.getUi().alert("'참석자명단' 탭에 참석자를 먼저 입력해 주세요."); return; }
+  var name = projectName_(ss);
+
+  // 명찰에 필요한 열만 (개인정보인 주민번호·연락처·계좌는 제외)
+  var cols = ['성명', '학교', '학과', '학번', '학년', '조'];
+  var lines = [cols.join(',')];
+  roster.forEach(function (r) {
+    lines.push(cols.map(function (c) { return csvCell_(r[c]); }).join(','));
+  });
+  var csv = '﻿' + lines.join('\r\n'); // BOM: 한글 엑셀 호환
+
+  var fileName = '[명찰CSV] ' + name + '.csv';
+  var folder = folderOf_(ss);
+  var file = folder.createFile(fileName, csv, 'text/csv');
+
+  markChecklist_(ss, '명찰', file.getUrl(), roster.length + '명 CSV 생성');
+  toast_('명찰용 CSV ' + roster.length + '행 생성 완료 (다운로드 후 미리캔버스/캔바 대량제작에 업로드)');
+  safeOpenUrl_(file.getUrl(), '명찰용 CSV');
+}
+
+function csvCell_(v) {
+  var s = (v == null) ? '' : String(v);
+  if (/[",\r\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function folderOf_(ss) {
+  try {
+    var parents = DriveApp.getFileById(ss.getId()).getParents();
+    if (parents.hasNext()) return parents.next();
+  } catch (e) {}
+  return DriveApp.getRootFolder();
+}
+
 function nameCardText_(r, projectName) {
   var line2 = [r['학교'], r['학과']].filter(Boolean).join(' · ');
   var line3 = [r['조'] ? r['조'] : '', r['학번'] ? r['학번'] : ''].filter(Boolean).join('  ');
