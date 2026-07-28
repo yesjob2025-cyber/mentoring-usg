@@ -1,12 +1,11 @@
 /**
- * 교육사업 준비 자동화 — 올인원(단일 파일) v3
+ * 교육사업 준비 자동화 — 올인원(단일 파일) v3.1
  * =============================================================
  * 빈 구글 시트 → 확장 프로그램 → Apps Script → 이 내용 전체 붙여넣기 → 저장
  * → createSampleChecklist 실행해 권한 허용 → 시트 새로고침(F5) → [교육사업 준비] 메뉴.
  *
- * v2 : 데이터 탭 + 산출물 자동생성(보험/안내문/강사확인/명찰/배너) + 결과보고서
- * v2.1: 명찰용 CSV(미리캔버스/캔바 대량제작)
- * v3 : 행사 전용 모바일 페이지(오픈채팅 대체) — 이름+학번 입장, 공지/확인, 회차별 출석·지각 자동
+ * v3  : 행사 전용 모바일 페이지(오픈채팅 대체) — 이름+학번 입장, 공지/확인, 회차별 출석·지각
+ * v3.1: 참가자 링크·QR을 "실제 배포 주소 등록" 방식으로 고정 (QR 주소 어긋남 해결)
  */
 
 // ===== 템플릿 =====
@@ -160,7 +159,8 @@ function onOpen() {
       ui.createMenu('🌐 행사 페이지 (오픈채팅 대체)')
         .addItem('① 행사 페이지 준비 (탭 생성)', 'setupHub')
         .addItem('② 배포 방법 안내', 'showDeployHelp')
-        .addItem('③ 참가자 링크·QR 보기', 'showHubLink')
+        .addItem('③ 웹앱 주소 등록 (배포 후 복사한 링크)', 'registerHubUrl')
+        .addItem('④ 참가자 링크·QR 보기', 'showHubLink')
     )
     .addSeparator()
     .addItem('📂 저장 폴더 지정', 'setFolder')
@@ -1103,23 +1103,47 @@ function doGet(e) {
 }
 
 // ── 참가자 링크 / QR / 배포 안내 ──────────────────────────────
-function showHubLink() {
-  var url = '';
-  try { url = ScriptApp.getService().getUrl(); } catch (e) {}
+
+/** 저장된 웹앱 주소 (없으면 자동 추정) */
+function hubUrl_() {
+  var stored = PropertiesService.getScriptProperties().getProperty('HUB_URL');
+  if (stored) return stored;
+  try { return ScriptApp.getService().getUrl() || ''; } catch (e) { return ''; }
+}
+
+/** 배포 관리에서 복사한 실제 웹앱 주소를 등록 (한 번만 하면 이후 QR이 항상 정확) */
+function registerHubUrl() {
   var ui = SpreadsheetApp.getUi();
-  if (!url) {
-    ui.alert('아직 웹앱이 배포되지 않았습니다.\n[🌐 행사 페이지 → 배포 방법]을 먼저 진행하세요.');
-    return;
+  var cur = PropertiesService.getScriptProperties().getProperty('HUB_URL') || '(미등록)';
+  var res = ui.prompt(
+    '웹앱 주소 등록',
+    '[배포 → 배포 관리]에서 "복사"한 웹앱 주소를 붙여넣으세요.\n' +
+      '(script.google.com/macros/s/…/exec 형태)\n\n현재 등록: ' + cur,
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (res.getSelectedButton() !== ui.Button.OK) return '';
+  var url = res.getResponseText().trim();
+  if (url.indexOf('/macros/s/') === -1 || url.indexOf('/exec') === -1) {
+    ui.alert('올바른 웹앱 주소가 아닙니다.\nscript.google.com/macros/s/…/exec 형태여야 합니다.');
+    return '';
   }
+  PropertiesService.getScriptProperties().setProperty('HUB_URL', url);
+  ui.alert('웹앱 주소가 등록되었습니다. 이제 [참가자 링크·QR 보기]가 항상 이 주소로 나옵니다.');
+  return url;
+}
+
+function showHubLink() {
+  var url = hubUrl_();
+  if (!url) { url = registerHubUrl(); if (!url) return; }
   var qr = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(url);
   var html = HtmlService.createHtmlOutput(
     '<div style="font-family:sans-serif;padding:16px;text-align:center">' +
     '<div style="font-weight:800;margin-bottom:10px">참가자 링크 · QR</div>' +
     '<img src="' + qr + '" style="width:220px;height:220px;border:1px solid #eee;border-radius:10px"><br>' +
     '<div style="margin-top:12px;font-size:12px;word-break:break-all"><a href="' + url + '" target="_blank">' + url + '</a></div>' +
-    '<div style="margin-top:10px;font-size:12px;color:#64748b">이 QR/링크를 오픈채팅·안내문에 넣으면 참가자가 입장합니다.</div></div>'
-  ).setWidth(320).setHeight(360);
-  ui.showModalDialog(html, '참가자 링크 · QR');
+    '<div style="margin-top:10px;font-size:12px;color:#64748b">이 QR/링크를 오픈채팅·안내문에 넣으면 참가자가 입장합니다.<br>주소가 틀리면 [웹앱 주소 등록]으로 다시 등록하세요.</div></div>'
+  ).setWidth(320).setHeight(370);
+  SpreadsheetApp.getUi().showModalDialog(html, '참가자 링크 · QR');
 }
 
 function showDeployHelp() {
@@ -1130,9 +1154,10 @@ function showDeployHelp() {
     '3) 유형 선택(⚙️) → "웹 앱"\n' +
     '4) 실행 계정: 나 / 액세스 권한: "모든 사용자"\n' +
     '5) [배포] → 권한 허용\n' +
-    '6) 생성된 웹 앱 URL 이 참가자 링크입니다.\n\n' +
-    '그 후 시트 메뉴 [🌐 행사 페이지 → 참가자 링크·QR 보기]에서 QR을 확인하세요.\n' +
-    '※ 공지/회차를 수정하면 바로 반영됩니다. 코드를 바꾼 경우에만 [배포 관리 → 편집 → 새 버전]으로 갱신하세요.'
+    '6) 액세스 권한은 반드시 "모든 사용자"(로그인 불필요)로 선택하세요.\n' +
+    '7) [배포 관리]에서 URL "복사" → 시트 메뉴 [③ 웹앱 주소 등록]에 붙여넣기.\n' +
+    '8) 그 후 [④ 참가자 링크·QR 보기]에서 QR을 확인하세요.\n\n' +
+    '※ 공지/회차를 수정하면 바로 반영됩니다. 코드를 바꾼 경우에만 [배포 관리 → 편집 → 배포]로 갱신하세요(주소 유지).'
   );
 }
 
