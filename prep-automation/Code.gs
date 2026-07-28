@@ -43,6 +43,7 @@ function onOpen() {
         .addItem('② 배포 방법 안내', 'showDeployHelp')
         .addItem('③ 웹앱 주소 등록 (배포 후 복사한 링크)', 'registerHubUrl')
         .addItem('④ 참가자 링크·QR 보기', 'showHubLink')
+        .addItem('⑤ 회차별 출결 QR (현장 게시용)', 'showAttendQR')
     )
     .addSeparator()
     .addItem('📂 저장 폴더 지정', 'setFolder')
@@ -340,7 +341,7 @@ function addSummarySheet(sh, b) {
 
 // ── 데이터 입력 탭 (명단 / 강사·스케줄) ───────────────────────
 
-var ROSTER_HEADERS = ['연번', '학교', '성명', '학과', '학번', '학년', '성별', '연락처', '주민등록번호', '조', '방배정', '계좌(은행)', '비고'];
+var ROSTER_HEADERS = ['연번', '학교', '성명', '학과', '학번', '학년', '성별', '연락처', '주민등록번호', '조', '분반', '방배정', '계좌(은행)', '비고'];
 var SPEAKER_HEADERS = ['일자', '시간', '세션명', '강사명', '소속', '연락처', '장소', '준비물', '강사료', '비고'];
 
 function createDataTabs(ss) {

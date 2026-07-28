@@ -9,7 +9,7 @@
   .wrap{max-width:520px;margin:0 auto;min-height:100vh;background:#f1f5f9;}
   header{background:linear-gradient(135deg,#1f43ad,#3b6ef5);color:#fff;padding:18px 18px 16px;position:sticky;top:0;z-index:5;}
   header .t{font-size:17px;font-weight:800;line-height:1.3;}
-  header .s{font-size:12px;opacity:.85;margin-top:3px;}
+  header .s{font-size:12px;opacity:.9;margin-top:3px;}
   .body{padding:16px;}
   .card{background:#fff;border-radius:14px;padding:15px 16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(15,23,42,.06);}
   .card h3{font-size:15px;margin-bottom:6px;}
@@ -37,30 +37,47 @@
   .logo{width:52px;height:52px;border-radius:14px;background:#2b57d6;color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px;margin:26px auto 12px;}
   .foot{text-align:center;font-size:11px;color:#94a3b8;padding:16px;}
   .dim{opacity:.55;}
+  .tabs{display:flex;gap:8px;margin-bottom:6px;}
+  .tabs button{flex:1;padding:10px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-weight:800;font-size:14px;color:#64748b;cursor:pointer;}
+  .tabs button.on{border-color:#2b57d6;background:#eef4ff;color:#1f43ad;}
+  .tcard{background:#0f172a;color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:10px;}
+  .tcard .r{display:flex;justify-content:space-between;align-items:center;}
+  .tcard .big{font-size:22px;font-weight:800;}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <!-- 입장 화면 -->
+  <!-- 입장 -->
   <div id="enter" class="body">
     <div class="logo">YJ</div>
     <h2 class="center" style="font-size:18px;">행사 안내 페이지</h2>
-    <p class="center" style="font-size:13px;color:#64748b;margin-top:6px;">등록된 <b>이름과 학번</b>으로 입장하세요.</p>
-    <div class="card" style="margin-top:18px;">
-      <div class="field"><label>이름</label><input id="in-name" placeholder="예: 홍길동" autocomplete="off"></div>
-      <div class="field" style="margin-top:10px;"><label>학번</label><input id="in-sid" placeholder="예: 202411726" inputmode="numeric" autocomplete="off"></div>
+    <p class="center" style="font-size:13px;color:#64748b;margin-top:6px;">입장 방법을 선택하세요.</p>
+    <div class="card" style="margin-top:16px;">
+      <div class="tabs">
+        <button id="tabStudent" class="on" onclick="setRole('student')">학생</button>
+        <button id="tabTeacher" onclick="setRole('teacher')">강사</button>
+      </div>
+      <div id="studentFields">
+        <div class="field"><label>이름</label><input id="in-name" placeholder="예: 홍길동" autocomplete="off"></div>
+        <div class="field" style="margin-top:10px;"><label>학번</label><input id="in-sid" placeholder="예: 202411726" inputmode="numeric" autocomplete="off"></div>
+      </div>
+      <div id="teacherFields" style="display:none;">
+        <div class="field"><label>강사코드</label><input id="in-code" placeholder="담당자에게 받은 코드" autocomplete="off"></div>
+      </div>
       <button class="btn" id="enterBtn" style="margin-top:16px;">입장하기</button>
       <div class="msg" id="enterMsg"></div>
     </div>
   </div>
 
-  <!-- 허브 화면 -->
+  <!-- 허브 -->
   <div id="hub" style="display:none;">
     <header>
       <div class="t" id="projTitle">행사</div>
       <div class="s" id="whoami"></div>
     </header>
     <div class="body">
+      <div id="teacherBox"></div>
+
       <div class="sec">📢 공지 · 안내</div>
       <div id="notices"></div>
 
@@ -68,112 +85,143 @@
       <div id="sessions"></div>
 
       <button class="btn ghost" id="refreshBtn" style="margin-top:8px;">새로고침</button>
-      <div class="foot">이 페이지는 실시간으로 갱신됩니다.<br><span id="logoutLink" style="text-decoration:underline;cursor:pointer;">다른 사람으로 입장</span></div>
+      <div class="foot">이 페이지는 자동으로 갱신됩니다.<br><span id="logoutLink" style="text-decoration:underline;cursor:pointer;">다른 사람으로 입장</span></div>
     </div>
   </div>
 </div>
 
 <script>
-  var ME = { name:'', sid:'' };
-  var LATEST = null;
+  var ROLE = 'student';
+  var ME = { role:'student', name:'', id:'' };
+  var BOOT = { s: decodeURIComponent("<?= autoS ?>"), c: decodeURIComponent("<?= autoC ?>"), done:false };
 
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  // 저장된 로그인 복원
+  function setRole(r){
+    ROLE=r;
+    $('tabStudent').className = r==='student'?'on':'';
+    $('tabTeacher').className = r==='teacher'?'on':'';
+    $('studentFields').style.display = r==='student'?'block':'none';
+    $('teacherFields').style.display = r==='teacher'?'block':'none';
+    $('enterMsg').textContent='';
+  }
+
   try {
     var saved = JSON.parse(localStorage.getItem('hub_me')||'null');
-    if (saved && saved.name && saved.sid) { ME = saved; showHub(); loadState(); }
+    if (saved && saved.role && saved.id) { ME = saved; showHub(); loadState(); }
   } catch(e){}
 
   $('enterBtn').onclick = function(){
-    var name = $('in-name').value.trim();
-    var sid = $('in-sid').value.trim();
-    if(!name || !sid){ $('enterMsg').textContent='이름과 학번을 모두 입력하세요.'; return; }
+    var payload;
+    if(ROLE==='teacher'){
+      var code=$('in-code').value.trim();
+      if(!code){ $('enterMsg').textContent='강사코드를 입력하세요.'; return; }
+      payload={role:'teacher', name:'', id:code};
+    } else {
+      var name=$('in-name').value.trim(), sid=$('in-sid').value.trim();
+      if(!name||!sid){ $('enterMsg').textContent='이름과 학번을 모두 입력하세요.'; return; }
+      payload={role:'student', name:name, id:sid};
+    }
     $('enterBtn').disabled=true; $('enterBtn').textContent='확인 중…'; $('enterMsg').textContent='';
     google.script.run.withSuccessHandler(function(res){
       $('enterBtn').disabled=false; $('enterBtn').textContent='입장하기';
-      if(!res || !res.ok){ $('enterMsg').textContent=(res&&res.msg)||'입장할 수 없습니다.'; return; }
-      ME={name:name,sid:sid};
+      if(!res||!res.ok){ $('enterMsg').textContent=(res&&res.msg)||'입장할 수 없습니다.'; return; }
+      ME={role:payload.role, name:res.name||payload.name, id:payload.id};
       try{ localStorage.setItem('hub_me', JSON.stringify(ME)); }catch(e){}
       showHub(); loadState();
     }).withFailureHandler(function(err){
       $('enterBtn').disabled=false; $('enterBtn').textContent='입장하기';
       $('enterMsg').textContent='오류: '+err.message;
-    }).hubEnter(name, sid);
+    }).hubEnter(payload);
   };
 
-  $('logoutLink').onclick = function(){ try{localStorage.removeItem('hub_me');}catch(e){} location.reload(); };
-  $('refreshBtn').onclick = function(){ loadState(); };
-
+  $('logoutLink').onclick=function(){ try{localStorage.removeItem('hub_me');}catch(e){} location.reload(); };
+  $('refreshBtn').onclick=function(){ loadState(); };
   function showHub(){ $('enter').style.display='none'; $('hub').style.display='block'; }
 
   function loadState(){
-    google.script.run.withSuccessHandler(render).withFailureHandler(function(){}).hubState(ME.name, ME.sid);
+    google.script.run.withSuccessHandler(render).withFailureHandler(function(){}).hubState(ME);
   }
 
   function render(st){
-    if(!st || !st.ok) return;
-    LATEST = st;
+    if(!st||!st.ok) return;
     $('projTitle').textContent = st.project || '행사 안내';
-    $('whoami').textContent = ME.name + ' · ' + ME.sid + ' 님 입장 중';
+    var who = ME.name + (st.role==='teacher' ? ' 강사님' : ' 님');
+    if(st.classes && st.classes.length) who += ' · ' + st.classes.join(', ');
+    $('whoami').textContent = who + ' 입장 중';
+
+    // 강사 대시보드
+    var tb=$('teacherBox'); tb.innerHTML='';
+    if(st.role==='teacher' && st.teacher){
+      var h='<div class="sec">👥 담당 분반 현황 (오늘)</div>';
+      if(!st.teacher.length){ h+='<div class="card dim"><p>담당 분반이 지정되지 않았습니다.</p></div>'; }
+      st.teacher.forEach(function(c){
+        h+='<div class="tcard"><div class="r"><div><div style="font-size:13px;opacity:.8">'+esc(c.cls||'전체')+'</div>'
+          +'<div class="big">'+c.present+' / '+c.total+'</div><div style="font-size:11px;opacity:.7">출석 / 전체</div></div>'
+          +'<div style="font-size:30px">🧑‍🎓</div></div></div>';
+      });
+      tb.innerHTML=h;
+    }
 
     // 공지
-    var nc = $('notices');
-    if(!st.notices.length){ nc.innerHTML='<div class="card dim"><p>등록된 공지가 없습니다.</p></div>'; }
-    else {
+    var nc=$('notices');
+    if(!st.notices.length){ nc.innerHTML='<div class="card dim"><p>표시할 공지가 없습니다.</p></div>'; }
+    else{
       nc.innerHTML='';
       st.notices.forEach(function(n){
         var d=document.createElement('div'); d.className='card';
-        var h = (n.pinned?'<span class="pin">📌 고정</span><br>':'')+'<h3>'+esc(n.title)+'</h3>';
+        var h=(n.pinned?'<span class="pin">📌 고정</span><br>':'')+'<h3>'+esc(n.title)+'</h3>';
         if(n.content) h+='<p>'+esc(n.content)+'</p>';
         if(n.link) h+='<a class="lnk" href="'+esc(n.link)+'" target="_blank">🔗 링크 열기</a>';
-        h+='<div class="row" style="margin-top:11px;"><span class="meta">읽으셨으면 확인을 눌러주세요</span>'
-          +'<button class="ackbtn" data-t="'+esc(n.title)+'">확인</button></div>';
+        h+='<div class="row" style="margin-top:11px;"><span class="meta">읽으셨으면 확인</span><button class="ackbtn" data-t="'+esc(n.title)+'">확인</button></div>';
         d.innerHTML=h; nc.appendChild(d);
       });
-      Array.prototype.forEach.call(nc.querySelectorAll('.ackbtn'), function(b){
+      Array.prototype.forEach.call(nc.querySelectorAll('.ackbtn'),function(b){
         b.onclick=function(){
           b.disabled=true; b.textContent='...';
-          google.script.run.withSuccessHandler(function(){
-            b.textContent='확인됨 ✓'; b.className='ackbtn ackdone';
-          }).withFailureHandler(function(){ b.disabled=false; b.textContent='확인'; }).hubAck(ME.name, ME.sid, b.getAttribute('data-t'));
+          google.script.run.withSuccessHandler(function(){ b.textContent='확인됨 ✓'; b.className='ackbtn ackdone'; })
+            .withFailureHandler(function(){ b.disabled=false; b.textContent='확인'; }).hubAck(ME, b.getAttribute('data-t'));
         };
       });
     }
 
     // 회차/출석
-    var sc = $('sessions'); sc.innerHTML='';
-    var todays = st.sessions.filter(function(s){ return s.isToday; });
-    var list = todays.length ? todays : st.sessions;
-    if(!list.length){ sc.innerHTML='<div class="card dim"><p>등록된 회차가 없습니다.</p></div>'; return; }
-    list.forEach(function(s){
+    var sc=$('sessions'); sc.innerHTML='';
+    var todays=st.sessions.filter(function(s){return s.isToday;});
+    var list=todays.length?todays:st.sessions;
+    if(!list.length){ sc.innerHTML='<div class="card dim"><p>표시할 회차가 없습니다.</p></div>'; }
+    else list.forEach(function(s){
       var d=document.createElement('div'); d.className='card';
-      var badge = s.myStatus==='출석' ? '<span class="badge b-att">출석 완료</span>'
-                : s.myStatus==='지각' ? '<span class="badge b-late">지각</span>'
-                : '<span class="badge b-none">미체크</span>';
-      var right = s.myStatus
-        ? badge
-        : '<button class="btn ok sm" data-s="'+esc(s.name)+'" data-code="'+(s.needCode?'1':'0')+'">출석 체크</button>';
-      d.innerHTML='<div class="row"><div><h3>'+esc(s.name)+'</h3><div class="meta">'
-        +esc(s.dateStr)+' '+esc(s.startStr)+(s.place?(' · '+esc(s.place)):'')+'</div></div><div>'+right+'</div></div>';
+      var badge = s.myStatus==='출석'?'<span class="badge b-att">출석 완료</span>'
+        : s.myStatus==='지각'?'<span class="badge b-late">지각</span>'
+        : '<span class="badge b-none">미체크</span>';
+      var right = s.myStatus?badge:'<button class="btn ok sm" data-s="'+esc(s.name)+'" data-code="'+(s.needCode?'1':'0')+'">출석 체크</button>';
+      d.innerHTML='<div class="row"><div><h3>'+esc(s.name)+'</h3><div class="meta">'+esc(s.dateStr)+' '+esc(s.startStr)
+        +(s.place?(' · '+esc(s.place)):'')+(s.cls?(' · '+esc(s.cls)):'')+'</div></div><div>'+right+'</div></div>';
       sc.appendChild(d);
     });
-    Array.prototype.forEach.call(sc.querySelectorAll('button[data-s]'), function(b){
+    Array.prototype.forEach.call(sc.querySelectorAll('button[data-s]'),function(b){
       b.onclick=function(){
-        var sname=b.getAttribute('data-s'); var code='';
+        var sname=b.getAttribute('data-s'), code='';
         if(b.getAttribute('data-code')==='1'){ code=prompt('현장 체크인 코드를 입력하세요'); if(code===null) return; }
-        b.disabled=true; b.textContent='체크 중…';
-        google.script.run.withSuccessHandler(function(res){
-          if(res && res.ok){ loadState(); }
-          else { alert((res&&res.msg)||'체크인 실패'); b.disabled=false; b.textContent='출석 체크'; }
-        }).withFailureHandler(function(err){ alert('오류: '+err.message); b.disabled=false; b.textContent='출석 체크'; })
-        .hubCheckin(ME.name, ME.sid, sname, code);
+        doCheckin(sname, code, b);
       };
     });
+
+    // 출결 QR 자동 체크인
+    if(BOOT.s && !BOOT.done){ BOOT.done=true; doCheckin(BOOT.s, BOOT.c, null); }
   }
 
-  // 30초마다 자동 갱신
+  function doCheckin(sname, code, btn){
+    if(btn){ btn.disabled=true; btn.textContent='체크 중…'; }
+    google.script.run.withSuccessHandler(function(res){
+      if(res&&res.ok){ if(res.status){ alert('출석 처리: '+res.status); } loadState(); }
+      else { alert((res&&res.msg)||'체크인 실패'); if(btn){ btn.disabled=false; btn.textContent='출석 체크'; } }
+    }).withFailureHandler(function(err){ alert('오류: '+err.message); if(btn){ btn.disabled=false; btn.textContent='출석 체크'; } })
+    .hubCheckin(ME, sname, code);
+  }
+
   setInterval(function(){ if($('hub').style.display!=='none') loadState(); }, 30000);
 </script>
 </body>
