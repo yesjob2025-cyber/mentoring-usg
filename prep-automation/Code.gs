@@ -48,6 +48,16 @@ function onOpen() {
         .addItem('💬 오픈채팅 링크 등록', 'registerOpenChat')
     )
     .addSeparator()
+    .addSubMenu(
+      ui.createMenu('📈 총괄 연동')
+        .addItem('총괄 시트 연결', 'connectRollup')
+        .addItem('고유번호 설정', 'setProjectCode')
+        .addItem('운영현황 보고 (지금)', 'reportToRollup')
+        .addSeparator()
+        .addItem('자동 보고 켜기 (매일)', 'enableAutoRollup')
+        .addItem('자동 보고 끄기', 'disableAutoRollup')
+    )
+    .addSeparator()
     .addItem('📂 저장 폴더 지정', 'setFolder')
     .addItem('ℹ️ 사용 안내', 'showHelp')
     .addToUi();
