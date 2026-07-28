@@ -1,11 +1,11 @@
 /**
- * 교육사업 준비 자동화 — 올인원(단일 파일) v4
+ * 교육사업 준비 자동화 — 올인원(단일 파일) v4.1
  * =============================================================
  * 빈 구글 시트 → 확장 프로그램 → Apps Script → 이 내용 전체 붙여넣기 → 저장
  * → createSampleChecklist 실행해 권한 허용 → 시트 새로고침(F5) → [교육사업 준비] 메뉴.
  *
- * v3.1: 행사 페이지(오픈채팅 대체) + 참가자 링크·QR 주소 등록
- * v4  : 분반 + 역할(학생/강사) 타겟팅, 강사코드 입장·담당분반 현황, 회차별 출결 QR 자동체크인
+ * v4  : 분반 + 역할(학생/강사) 타겟팅, 강사코드 입장, 회차별 출결 QR 자동체크인
+ * v4.1: 오픈채팅 링크 연동 (허브 상단 [오픈채팅방 참여] 버튼 + 학생 안내문 포함)
  */
 
 // ===== 템플릿 =====
@@ -162,6 +162,8 @@ function onOpen() {
         .addItem('③ 웹앱 주소 등록 (배포 후 복사한 링크)', 'registerHubUrl')
         .addItem('④ 참가자 링크·QR 보기', 'showHubLink')
         .addItem('⑤ 회차별 출결 QR (현장 게시용)', 'showAttendQR')
+        .addSeparator()
+        .addItem('💬 오픈채팅 링크 등록', 'registerOpenChat')
     )
     .addSeparator()
     .addItem('📂 저장 폴더 지정', 'setFolder')
@@ -691,12 +693,20 @@ function genStudentNotice() {
   ['일정은 현장 사정에 따라 일부 변경될 수 있습니다.', '문의: 운영 담당자에게 오픈채팅방으로 연락 바랍니다.']
     .forEach(function (s) { body.appendListItem(s).setGlyphType(DocumentApp.GlyphType.BULLET); });
 
+  var oc = (typeof openChatUrl_ === 'function') ? openChatUrl_() : '';
+  if (oc) {
+    body.appendParagraph('오픈채팅방').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    body.appendParagraph(oc);
+  }
+
   pNote_(body, '\n※ 아래 문자/카톡용 요약본을 그대로 복사해 보내셔도 됩니다.');
   var sms = '[' + name + ']\n' +
     (ov['일정'] ? '일정: ' + ov['일정'] + '\n' : '') +
     (ov['시간'] ? '시간: ' + ov['시간'] + '\n' : '') +
     (ov['행사장'] ? '장소: ' + ov['행사장'] + '\n' : '') +
-    '준비물: 신분증, 노트북/필기구\n정시 시작이니 시간 엄수 부탁드립니다.';
+    '준비물: 신분증, 노트북/필기구\n' +
+    (oc ? '오픈채팅방: ' + oc + '\n' : '') +
+    '정시 시작이니 시간 엄수 부탁드립니다.';
   pBg_(body, sms, '#f1f5f9');
 
   doc.saveAndClose();
@@ -1151,6 +1161,25 @@ function registerHubUrl() {
   return url;
 }
 
+function openChatUrl_() {
+  return PropertiesService.getScriptProperties().getProperty('OPENCHAT_URL') || '';
+}
+
+function registerOpenChat() {
+  var ui = SpreadsheetApp.getUi();
+  var cur = openChatUrl_() || '(미등록)';
+  var res = ui.prompt('오픈채팅 링크 등록',
+    '카카오톡 오픈채팅방 링크(https://open.kakao.com/…)를 붙여넣으세요.\n(비우고 확인하면 해제)\n\n현재: ' + cur,
+    ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  var url = res.getResponseText().trim();
+  if (url && url.indexOf('http') !== 0) { ui.alert('http로 시작하는 링크를 넣어주세요.'); return; }
+  PropertiesService.getScriptProperties().setProperty('OPENCHAT_URL', url);
+  ui.alert(url
+    ? '오픈채팅 링크가 등록되었습니다. 참가자 페이지 상단에 [오픈채팅방 참여] 버튼이 표시됩니다.'
+    : '오픈채팅 링크가 해제되었습니다.');
+}
+
 function showHubLink() {
   var url = hubUrl_();
   if (!url) { url = registerHubUrl(); if (!url) return; }
@@ -1326,7 +1355,7 @@ function hubState(me) {
   var teacher = null;
   if (r.role === 'teacher') teacher = teacherDashboard_(ss, r.classes, todayStr);
 
-  return { ok: true, role: r.role, name: r.name, classes: r.classes, project: project, notices: notices, sessions: sessions, teacher: teacher };
+  return { ok: true, role: r.role, name: r.name, classes: r.classes, project: project, notices: notices, sessions: sessions, teacher: teacher, openChat: openChatUrl_() };
 }
 
 /** 강사용: 담당 분반별 인원/오늘 출석 현황 */
@@ -1653,6 +1682,7 @@ function getHubHtml() {
       <div class="s" id="whoami"></div>
     </header>
     <div class="body">
+      <div id="openchat"></div>
       <div id="teacherBox"></div>
 
       <div class="sec">📢 공지 · 안내</div>
@@ -1727,6 +1757,11 @@ function getHubHtml() {
     var who = ME.name + (st.role==='teacher' ? ' 강사님' : ' 님');
     if(st.classes && st.classes.length) who += ' · ' + st.classes.join(', ');
     $('whoami').textContent = who + ' 입장 중';
+
+    // 오픈채팅 버튼
+    $('openchat').innerHTML = st.openChat
+      ? '<a href="'+esc(st.openChat)+'" target="_blank" style="display:block;text-align:center;background:#fee500;color:#3c1e1e;font-weight:800;padding:13px;border-radius:11px;margin-bottom:12px;text-decoration:none">💬 오픈채팅방 참여</a>'
+      : '';
 
     // 강사 대시보드
     var tb=$('teacherBox'); tb.innerHTML='';

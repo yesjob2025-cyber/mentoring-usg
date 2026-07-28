@@ -76,6 +76,7 @@
       <div class="s" id="whoami"></div>
     </header>
     <div class="body">
+      <div id="openchat"></div>
       <div id="teacherBox"></div>
 
       <div class="sec">📢 공지 · 안내</div>
@@ -150,6 +151,11 @@
     var who = ME.name + (st.role==='teacher' ? ' 강사님' : ' 님');
     if(st.classes && st.classes.length) who += ' · ' + st.classes.join(', ');
     $('whoami').textContent = who + ' 입장 중';
+
+    // 오픈채팅 버튼
+    $('openchat').innerHTML = st.openChat
+      ? '<a href="'+esc(st.openChat)+'" target="_blank" style="display:block;text-align:center;background:#fee500;color:#3c1e1e;font-weight:800;padding:13px;border-radius:11px;margin-bottom:12px;text-decoration:none">💬 오픈채팅방 참여</a>'
+      : '';
 
     // 강사 대시보드
     var tb=$('teacherBox'); tb.innerHTML='';

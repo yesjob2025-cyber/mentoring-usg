@@ -133,6 +133,25 @@ function registerHubUrl() {
   return url;
 }
 
+function openChatUrl_() {
+  return PropertiesService.getScriptProperties().getProperty('OPENCHAT_URL') || '';
+}
+
+function registerOpenChat() {
+  var ui = SpreadsheetApp.getUi();
+  var cur = openChatUrl_() || '(미등록)';
+  var res = ui.prompt('오픈채팅 링크 등록',
+    '카카오톡 오픈채팅방 링크(https://open.kakao.com/…)를 붙여넣으세요.\n(비우고 확인하면 해제)\n\n현재: ' + cur,
+    ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  var url = res.getResponseText().trim();
+  if (url && url.indexOf('http') !== 0) { ui.alert('http로 시작하는 링크를 넣어주세요.'); return; }
+  PropertiesService.getScriptProperties().setProperty('OPENCHAT_URL', url);
+  ui.alert(url
+    ? '오픈채팅 링크가 등록되었습니다. 참가자 페이지 상단에 [오픈채팅방 참여] 버튼이 표시됩니다.'
+    : '오픈채팅 링크가 해제되었습니다.');
+}
+
 function showHubLink() {
   var url = hubUrl_();
   if (!url) { url = registerHubUrl(); if (!url) return; }
@@ -308,7 +327,7 @@ function hubState(me) {
   var teacher = null;
   if (r.role === 'teacher') teacher = teacherDashboard_(ss, r.classes, todayStr);
 
-  return { ok: true, role: r.role, name: r.name, classes: r.classes, project: project, notices: notices, sessions: sessions, teacher: teacher };
+  return { ok: true, role: r.role, name: r.name, classes: r.classes, project: project, notices: notices, sessions: sessions, teacher: teacher, openChat: openChatUrl_() };
 }
 
 /** 강사용: 담당 분반별 인원/오늘 출석 현황 */

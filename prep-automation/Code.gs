@@ -44,6 +44,8 @@ function onOpen() {
         .addItem('③ 웹앱 주소 등록 (배포 후 복사한 링크)', 'registerHubUrl')
         .addItem('④ 참가자 링크·QR 보기', 'showHubLink')
         .addItem('⑤ 회차별 출결 QR (현장 게시용)', 'showAttendQR')
+        .addSeparator()
+        .addItem('💬 오픈채팅 링크 등록', 'registerOpenChat')
     )
     .addSeparator()
     .addItem('📂 저장 폴더 지정', 'setFolder')

@@ -173,12 +173,20 @@ function genStudentNotice() {
   ['일정은 현장 사정에 따라 일부 변경될 수 있습니다.', '문의: 운영 담당자에게 오픈채팅방으로 연락 바랍니다.']
     .forEach(function (s) { body.appendListItem(s).setGlyphType(DocumentApp.GlyphType.BULLET); });
 
+  var oc = (typeof openChatUrl_ === 'function') ? openChatUrl_() : '';
+  if (oc) {
+    body.appendParagraph('오픈채팅방').setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    body.appendParagraph(oc);
+  }
+
   pNote_(body, '\n※ 아래 문자/카톡용 요약본을 그대로 복사해 보내셔도 됩니다.');
   var sms = '[' + name + ']\n' +
     (ov['일정'] ? '일정: ' + ov['일정'] + '\n' : '') +
     (ov['시간'] ? '시간: ' + ov['시간'] + '\n' : '') +
     (ov['행사장'] ? '장소: ' + ov['행사장'] + '\n' : '') +
-    '준비물: 신분증, 노트북/필기구\n정시 시작이니 시간 엄수 부탁드립니다.';
+    '준비물: 신분증, 노트북/필기구\n' +
+    (oc ? '오픈채팅방: ' + oc + '\n' : '') +
+    '정시 시작이니 시간 엄수 부탁드립니다.';
   pBg_(body, sms, '#f1f5f9');
 
   doc.saveAndClose();
