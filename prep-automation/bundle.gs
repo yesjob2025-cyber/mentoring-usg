@@ -1,11 +1,11 @@
 /**
- * 교육사업 준비 자동화 — 올인원(단일 파일) v6
+ * 교육사업 준비 자동화 — 올인원(단일 파일) v6.1
  * =============================================================
  * 빈 구글 시트 → 확장 프로그램 → Apps Script → 이 내용 전체 붙여넣기 → 저장
  * → createSampleChecklist 실행해 권한 허용 → 시트 새로고침(F5) → [교육사업 준비] 메뉴.
  *
- * v5: 총괄 연동(운영현황 자동 보고)
- * v6: 제안 단계 — 새 제안 등록 시 Drive 폴더(제안서/견적서/산출물/정산) 자동생성 + 총괄 제안관리 기록
+ * v6  : 제안 단계 + Drive 폴더 자동생성
+ * v6.1: [총괄 파일 새로 만들기] — 내 드라이브에 총괄 구글시트 생성 + 자동 연결
  */
 
 // ===== 템플릿 =====
@@ -169,7 +169,8 @@ function onOpen() {
     .addSeparator()
     .addSubMenu(
       ui.createMenu('📈 총괄 연동')
-        .addItem('총괄 시트 연결', 'connectRollup')
+        .addItem('총괄 파일 새로 만들기', 'createRollupFile')
+        .addItem('총괄 시트 연결 (기존 파일)', 'connectRollup')
         .addItem('고유번호 설정', 'setProjectCode')
         .addItem('운영현황 보고 (지금)', 'reportToRollup')
         .addSeparator()
@@ -1588,6 +1589,39 @@ var ROLLUP_HEADERS = ['고유번호', '사업명', '기관', '유형', '시작�
   '완료/전체', '지난마감', '예상비용', '실제비용', '참가인원', '오늘출석', '갱신시각', '링크'];
 
 function rollupProps_() { return PropertiesService.getScriptProperties(); }
+
+// ── 총괄 파일 새로 만들기 (내 드라이브에 생성 + 자동 연결) ─────
+function createRollupFile() {
+  var ui = SpreadsheetApp.getUi();
+  var ss = SpreadsheetApp.create('YESJOB 사업총괄');
+  var defs = [
+    ['사업총괄', ['고유번호', '사업형태', '사업구분', '진행', '연도', '월', '사업명', '기관', '담당자', '부서', '기타', '장소', '시작일자', '종료일자', '계약금액', '계약기업']],
+    ['비용정리', ['고유번호', '정산', '사업연도', '사업명', '기관', '종료일', '처리', '처리일자', '처리법인', '처리방법', '금액', '사업자', '실 지급비용']],
+    ['입찰&영업관리', ['연번', '날짜', '제안', '구분', '기관', '부서', '담당', '연락처', '사업명', '사업내용', '자격요건', '사업예산', '사업일자', '제출일자', '제안평가', '제출방법']],
+    ['강사리스트', ['강사명', '전문분야', '소속', '연락처', '이메일', '단가', '비고']],
+    ['업체리스트', ['업체명', '품목', '담당', '연락처', '비고']],
+    [ROLLUP_TAB, ROLLUP_HEADERS],
+    [PROPOSAL_TAB, PROPOSAL_HEADERS]
+  ];
+  var first = ss.getSheets()[0];
+  defs.forEach(function (d, i) {
+    var sh = (i === 0) ? first : ss.insertSheet();
+    sh.setName(d[0]);
+    sh.getRange(1, 1, 1, d[1].length).setValues([d[1]])
+      .setFontWeight('bold').setBackground('#334155').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+  });
+  rollupProps_().setProperty('ROLLUP_SS_ID', ss.getId());
+
+  var url = ss.getUrl();
+  var html = HtmlService.createHtmlOutput(
+    '<div style="font-family:sans-serif;padding:16px">' +
+    '✅ <b>총괄 파일이 생성되고 자동 연결되었습니다.</b><br><br>' +
+    '탭: 사업총괄 · 비용정리 · 입찰&영업관리 · 강사리스트 · 업체리스트 · 운영현황 · 제안관리(자동)<br><br>' +
+    '<a href="' + url + '" target="_blank">총괄 파일 열기 →</a></div>'
+  ).setWidth(360).setHeight(200);
+  ui.showModalDialog(html, '총괄 파일 생성 완료');
+}
 
 // ── 설정 ──────────────────────────────────────────────────────
 function connectRollup() {

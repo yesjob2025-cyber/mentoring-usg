@@ -51,7 +51,8 @@ function onOpen() {
     .addSeparator()
     .addSubMenu(
       ui.createMenu('📈 총괄 연동')
-        .addItem('총괄 시트 연결', 'connectRollup')
+        .addItem('총괄 파일 새로 만들기', 'createRollupFile')
+        .addItem('총괄 시트 연결 (기존 파일)', 'connectRollup')
         .addItem('고유번호 설정', 'setProjectCode')
         .addItem('운영현황 보고 (지금)', 'reportToRollup')
         .addSeparator()
