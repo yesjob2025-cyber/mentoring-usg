@@ -184,7 +184,41 @@ function doReportToRollup_() {
   }
   if (target === -1) target = last + 1;
   sh.getRange(target, 1, 1, row.length).setValues([row]);
+
+  // 사업총괄 진행 단계 자동 반영
+  try { syncBusinessMaster_(rollup, code, readOverview_(ss)); } catch (e) {}
   return { ok: true, code: code };
+}
+
+/** 사업총괄의 진행 단계를 자동 갱신 (없으면 행 추가) */
+function syncBusinessMaster_(rollup, code, ov) {
+  var sh = rollup.getSheetByName('사업총괄');
+  if (!sh) return;
+  var startStr = firstDateStr_(ov['일정']);
+  var dday = ddayNum_(startStr);
+  var stage = (dday === '') ? '2. 진행' : (dday >= 0 ? '2. 진행' : '3. 정산');
+
+  var last = sh.getLastRow();
+  var codes = last > 1 ? sh.getRange(2, 1, last - 1, 1).getValues() : [];
+  for (var i = 0; i < codes.length; i++) {
+    if (String(codes[i][0]).trim() === code) { sh.getRange(i + 2, 4).setValue(stage); return; }
+  }
+  // 없으면 새 행
+  var typeLabel = String(ov['유형'] || '');
+  var letter = typeLabel.indexOf('온라인') >= 0 ? 'B.온라인'
+    : (typeLabel.indexOf('박람회') >= 0 || typeLabel.indexOf('행사') >= 0) ? 'C.행사' : 'A.교육';
+  var year = startStr ? startStr.substr(0, 4) : '';
+  var month = startStr ? String(Number(startStr.substr(5, 2))) : '';
+  sh.appendRow([
+    code, letter, '', stage, year, month, String(ov['사업명'] || ''),
+    String(ov['기관 / 부서'] || ov['기관'] || ''), String(ov['담당자'] || ''), '', '',
+    String(ov['행사장'] || ''), startStr, startStr, numOnly_(ov['예산']), String(ov['계약주체'] || '')
+  ]);
+}
+
+function numOnly_(v) {
+  var n = Number(String(v == null ? '' : v).replace(/[^0-9.]/g, ''));
+  return isFinite(n) ? n : '';
 }
 
 function buildRollupRow_(ss, code) {
