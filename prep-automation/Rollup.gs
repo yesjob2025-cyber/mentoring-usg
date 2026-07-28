@@ -17,7 +17,12 @@ function rollupProps_() { return PropertiesService.getScriptProperties(); }
 // ── 총괄 파일 새로 만들기 (내 드라이브에 생성 + 자동 연결) ─────
 function createRollupFile() {
   var ui = SpreadsheetApp.getUi();
-  var ss = SpreadsheetApp.create('YESJOB 사업총괄');
+  // 스크립트까지 포함해 복제 → 총괄에서 onEdit(확정→사업총괄 자동생성)이 작동
+  var master = SpreadsheetApp.getActiveSpreadsheet();
+  var file = DriveApp.getFileById(master.getId()).makeCopy('YESJOB 사업총괄');
+  var ss = SpreadsheetApp.openById(file.getId());
+  var tmp = ss.insertSheet('__tmp__');
+  ss.getSheets().forEach(function (s) { if (s.getSheetId() !== tmp.getSheetId()) ss.deleteSheet(s); });
   var defs = [
     ['사업총괄', ['고유번호', '사업형태', '사업구분', '진행', '연도', '월', '사업명', '기관', '담당자', '부서', '기타', '장소', '시작일자', '종료일자', '계약금액', '계약기업']],
     ['비용정리', ['고유번호', '정산', '사업연도', '사업명', '기관', '종료일', '처리', '처리일자', '처리법인', '처리방법', '금액', '사업자', '실 지급비용']],
@@ -27,14 +32,14 @@ function createRollupFile() {
     [ROLLUP_TAB, ROLLUP_HEADERS],
     [PROPOSAL_TAB, PROPOSAL_HEADERS]
   ];
-  var first = ss.getSheets()[0];
   defs.forEach(function (d, i) {
-    var sh = (i === 0) ? first : ss.insertSheet();
+    var sh = (i === 0) ? tmp : ss.insertSheet();
     sh.setName(d[0]);
     sh.getRange(1, 1, 1, d[1].length).setValues([d[1]])
       .setFontWeight('bold').setBackground('#334155').setFontColor('#ffffff');
     sh.setFrozenRows(1);
   });
+  applyStatusValidation_(ss.getSheetByName(PROPOSAL_TAB)); // 상태 드롭다운
   rollupProps_().setProperty('ROLLUP_SS_ID', ss.getId());
 
   var url = ss.getUrl();
@@ -42,9 +47,54 @@ function createRollupFile() {
     '<div style="font-family:sans-serif;padding:16px">' +
     '✅ <b>총괄 파일이 생성되고 자동 연결되었습니다.</b><br><br>' +
     '탭: 사업총괄 · 비용정리 · 입찰&영업관리 · 강사리스트 · 업체리스트 · 운영현황 · 제안관리(자동)<br><br>' +
+    '<b>제안관리</b>의 상태를 <b>"확정"</b>으로 바꾸면 <b>사업총괄</b>에 자동으로 추가됩니다.<br><br>' +
     '<a href="' + url + '" target="_blank">총괄 파일 열기 →</a></div>'
-  ).setWidth(360).setHeight(200);
+  ).setWidth(380).setHeight(230);
   ui.showModalDialog(html, '총괄 파일 생성 완료');
+}
+
+// ── 제안 "확정" → 사업총괄 자동 생성 (총괄 파일의 onEdit) ─────
+function onEdit(e) {
+  try {
+    if (!e || !e.range || e.value == null) return;
+    var sh = e.range.getSheet();
+    if (sh.getName() !== PROPOSAL_TAB) return;
+    var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+    var statusCol = headers.indexOf('상태') + 1;
+    if (statusCol === 0 || e.range.getColumn() !== statusCol) return;
+    if (String(e.value).trim() !== '확정') return;
+    if (e.range.getRow() < 2) return;
+    promoteProposalToRollup_(sh, e.range.getRow());
+  } catch (err) { /* onEdit는 조용히 */ }
+}
+
+function promoteProposalToRollup_(psh, row) {
+  var headers = psh.getRange(1, 1, 1, psh.getLastColumn()).getValues()[0];
+  var vals = psh.getRange(row, 1, 1, psh.getLastColumn()).getValues()[0];
+  function g(name) { var i = headers.indexOf(name); return i >= 0 ? vals[i] : ''; }
+
+  var code = String(g('고유번호') || '').trim();
+  if (!code) return;
+  var ss = psh.getParent();
+  var target = ss.getSheetByName('사업총괄');
+  if (!target) return;
+
+  // 중복 방지 (이미 사업총괄에 있으면 건너뜀)
+  var last = target.getLastRow();
+  var codes = last > 1 ? target.getRange(2, 1, last - 1, 1).getValues() : [];
+  for (var i = 0; i < codes.length; i++) {
+    if (String(codes[i][0]).trim() === code) return;
+  }
+
+  var typeMap = { '교육': 'A.교육', '온라인': 'B.온라인', '행사': 'C.행사' };
+  var d = firstDateStr_(g('사업일자'));
+  var year = d ? d.substr(0, 4) : '';
+  var month = d ? String(Number(d.substr(5, 2))) : '';
+  target.appendRow([
+    code, (typeMap[g('유형')] || g('유형') || ''), g('구분') || '', '1. 계약', year, month,
+    g('사업명') || '', g('기관') || '', g('담당자') || '', g('부서') || '', '', '',
+    g('사업일자') || '', g('사업일자') || '', g('사업예산') || '', ''
+  ]);
 }
 
 // ── 설정 ──────────────────────────────────────────────────────

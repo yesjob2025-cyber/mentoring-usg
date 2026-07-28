@@ -9,7 +9,8 @@
 
 var PROPOSAL_TAB = '제안관리(자동)';
 var PROPOSAL_HEADERS = ['등록일', '고유번호', '유형', '구분', '사업명', '기관', '부서', '담당자', '연락처',
-  '사업예산', '사업일자', '제출일자', '사업내용', '폴더링크'];
+  '사업예산', '사업일자', '제출일자', '사업내용', '폴더링크', '상태'];
+var PROPOSAL_STATUS = ['준비', '제출', '확정'];
 var PROPOSAL_SUBFOLDERS = ['1_제안서', '2_견적서', '3_산출물', '4_정산'];
 
 // ── 상위(루트) 폴더 ───────────────────────────────────────────
@@ -80,7 +81,17 @@ function logProposal_(form, code, folderUrl, tz) {
   sh.appendRow([
     Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), code, form.type || '', form.category || '',
     form.name || '', form.org || '', form.dept || '', form.manager || '', form.contact || '',
-    form.budget || '', form.eventDate || '', form.dueDate || '', form.detail || '', folderUrl
+    form.budget || '', form.eventDate || '', form.dueDate || '', form.detail || '', folderUrl, '준비'
   ]);
+  applyStatusValidation_(sh);
   return true;
+}
+
+/** 제안관리 "상태" 열에 드롭다운(준비/제출/확정) 적용 */
+function applyStatusValidation_(sh) {
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var col = headers.indexOf('상태') + 1;
+  if (col === 0) return;
+  var rule = SpreadsheetApp.newDataValidation().requireValueInList(PROPOSAL_STATUS, true).build();
+  sh.getRange(2, col, Math.max(sh.getMaxRows() - 1, 1), 1).setDataValidation(rule);
 }
