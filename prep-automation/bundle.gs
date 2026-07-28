@@ -1,11 +1,11 @@
 /**
- * 교육사업 준비 자동화 — 올인원(단일 파일) v6.1
+ * 교육사업 준비 자동화 — 올인원(단일 파일) v6.2
  * =============================================================
  * 빈 구글 시트 → 확장 프로그램 → Apps Script → 이 내용 전체 붙여넣기 → 저장
  * → createSampleChecklist 실행해 권한 허용 → 시트 새로고침(F5) → [교육사업 준비] 메뉴.
  *
- * v6  : 제안 단계 + Drive 폴더 자동생성
- * v6.1: [총괄 파일 새로 만들기] — 내 드라이브에 총괄 구글시트 생성 + 자동 연결
+ * v6.1: 총괄 파일 새로 만들기(자동 생성+연결)
+ * v6.2: 새 사업 폼에 "고유번호" 칸 추가 → 사업개요에 기록 → 총괄 연동에 자동 사용
  */
 
 // ===== 템플릿 =====
@@ -328,6 +328,7 @@ function buildSheet(sh, form, typeLabel, start, end, items) {
   // 개요 블록 (라벨/값)
   var overview = [
     ['사업명', form.name],
+    ['고유번호', form.code || ''],
     ['유형', typeLabel],
     ['기관 / 부서', joinNonEmpty([form.org, form.dept], ' / ')],
     ['담당자', form.manager || ''],
@@ -1675,9 +1676,10 @@ function doReportToRollup_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var props = rollupProps_();
   var rollupId = props.getProperty('ROLLUP_SS_ID');
-  var code = props.getProperty('PROJECT_CODE');
-  if (!rollupId) return { ok: false, msg: '먼저 [총괄 시트 연결]을 하세요.' };
-  if (!code) return { ok: false, msg: '먼저 [고유번호 설정]을 하세요.' };
+  // 고유번호: 사업 시트 개요의 값 우선, 없으면 [고유번호 설정] 값
+  var code = String(readOverview_(ss)['고유번호'] || '').trim() || props.getProperty('PROJECT_CODE');
+  if (!rollupId) return { ok: false, msg: '먼저 [총괄 시트 연결] 또는 [총괄 파일 새로 만들기]를 하세요.' };
+  if (!code) return { ok: false, msg: '고유번호가 없습니다. 사업 폼의 고유번호 칸에 입력하거나 [고유번호 설정]을 하세요.' };
 
   var row = buildRollupRow_(ss, code);
   var rollup;
@@ -1832,6 +1834,9 @@ function getDialogHtml() {
         <input type="date" name="endDate" />
       </div>
     </div>
+
+    <label>고유번호 <span class="hint">(총괄 연동용 · 제안 때 나온 번호, 선택)</span></label>
+    <input name="code" placeholder="예: C260504_01" />
 
     <div class="row">
       <div><label>기관</label><input name="org" placeholder="예: 경상국립대학교" /></div>

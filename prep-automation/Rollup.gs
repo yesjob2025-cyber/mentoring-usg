@@ -99,9 +99,10 @@ function doReportToRollup_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var props = rollupProps_();
   var rollupId = props.getProperty('ROLLUP_SS_ID');
-  var code = props.getProperty('PROJECT_CODE');
-  if (!rollupId) return { ok: false, msg: '먼저 [총괄 시트 연결]을 하세요.' };
-  if (!code) return { ok: false, msg: '먼저 [고유번호 설정]을 하세요.' };
+  // 고유번호: 사업 시트 개요의 값 우선, 없으면 [고유번호 설정] 값
+  var code = String(readOverview_(ss)['고유번호'] || '').trim() || props.getProperty('PROJECT_CODE');
+  if (!rollupId) return { ok: false, msg: '먼저 [총괄 시트 연결] 또는 [총괄 파일 새로 만들기]를 하세요.' };
+  if (!code) return { ok: false, msg: '고유번호가 없습니다. 사업 폼의 고유번호 칸에 입력하거나 [고유번호 설정]을 하세요.' };
 
   var row = buildRollupRow_(ss, code);
   var rollup;

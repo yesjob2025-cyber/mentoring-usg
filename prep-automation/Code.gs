@@ -210,6 +210,7 @@ function buildSheet(sh, form, typeLabel, start, end, items) {
   // 개요 블록 (라벨/값)
   var overview = [
     ['사업명', form.name],
+    ['고유번호', form.code || ''],
     ['유형', typeLabel],
     ['기관 / 부서', joinNonEmpty([form.org, form.dept], ' / ')],
     ['담당자', form.manager || ''],
