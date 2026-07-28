@@ -66,11 +66,43 @@ function createProposal(form) {
   return { ok: true, code: code, name: form.name.trim(), folderUrl: folder.getUrl(), logged: logged };
 }
 
+/** 새 사업 폼: 고유번호로 제안관리 내용을 찾아 반환 (자동 채우기용) */
+function lookupProposal(code) {
+  code = String(code || '').trim();
+  if (!code) return { found: false };
+  var ss = rollupTargetSS_();
+  if (!ss) return { found: false, msg: '총괄이 연결되지 않았습니다.' };
+  var sh = ss.getSheetByName(PROPOSAL_TAB);
+  if (!sh || sh.getLastRow() < 2) return { found: false };
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  var ci = headers.indexOf('고유번호');
+  var typeMap = { '온라인': 'online', '교육': 'offline', '행사': 'expo' };
+  for (var i = 0; i < data.length; i++) {
+    if (String(data[i][ci]).trim() === code) {
+      var row = data[i];
+      function g(name) { var j = headers.indexOf(name); return j >= 0 ? row[j] : ''; }
+      return {
+        found: true,
+        name: String(g('사업명') || ''), type: (typeMap[String(g('유형'))] || ''),
+        org: String(g('기관') || ''), dept: String(g('부서') || ''),
+        manager: String(g('담당자') || ''), budget: String(g('사업예산') || ''),
+        startDate: normDateInput_(g('사업일자'))
+      };
+    }
+  }
+  return { found: false };
+}
+
+function normDateInput_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd');
+  var m = String(v || '').match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  return m ? (m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2)) : '';
+}
+
 function logProposal_(form, code, folderUrl, tz) {
-  var rollupId = PropertiesService.getScriptProperties().getProperty('ROLLUP_SS_ID');
-  if (!rollupId) return false;
-  var ss;
-  try { ss = SpreadsheetApp.openById(rollupId); } catch (e) { return false; }
+  var ss = rollupTargetSS_();
+  if (!ss) return false;
   var sh = ss.getSheetByName(PROPOSAL_TAB);
   if (!sh) {
     sh = ss.insertSheet(PROPOSAL_TAB);

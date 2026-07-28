@@ -14,6 +14,15 @@ var ROLLUP_HEADERS = ['고유번호', '사업명', '기관', '유형', '시작�
 
 function rollupProps_() { return PropertiesService.getScriptProperties(); }
 
+/** 기록 대상 총괄 시트: 연결ID 우선, 없으면 "지금 이 시트가 총괄이면" 자기 자신 */
+function rollupTargetSS_() {
+  var id = rollupProps_().getProperty('ROLLUP_SS_ID');
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (e) {} }
+  var active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active && (active.getSheetByName('사업총괄') || active.getSheetByName(PROPOSAL_TAB))) return active;
+  return null;
+}
+
 // ── 총괄 파일 새로 만들기 (내 드라이브에 생성 + 자동 연결) ─────
 function createRollupFile() {
   var ui = SpreadsheetApp.getUi();

@@ -1,12 +1,11 @@
 /**
- * 교육사업 준비 자동화 — 올인원(단일 파일) v6.3
+ * 교육사업 준비 자동화 — 올인원(단일 파일) v6.4
  * =============================================================
  * 빈 구글 시트 → 확장 프로그램 → Apps Script → 이 내용 전체 붙여넣기 → 저장
  * → createSampleChecklist 실행해 권한 허용 → 시트 새로고침(F5) → [교육사업 준비] 메뉴.
  *
- * v6.2: 새 사업 폼 고유번호 칸
- * v6.3: 제안관리 상태(준비/제출/확정) 드롭다운 → "확정" 시 사업총괄 자동 생성(onEdit).
- *       총괄 파일을 스크립트 포함 복제로 생성.
+ * v6.3: 제안 확정 → 사업총괄 자동생성(onEdit)
+ * v6.4: 총괄 파일에서 직접 제안 등록 가능 + 새 사업 폼 "제안 불러오기"(고유번호로 자동 채우기)
  */
 
 // ===== 템플릿 =====
@@ -601,11 +600,43 @@ function createProposal(form) {
   return { ok: true, code: code, name: form.name.trim(), folderUrl: folder.getUrl(), logged: logged };
 }
 
+/** 새 사업 폼: 고유번호로 제안관리 내용을 찾아 반환 (자동 채우기용) */
+function lookupProposal(code) {
+  code = String(code || '').trim();
+  if (!code) return { found: false };
+  var ss = rollupTargetSS_();
+  if (!ss) return { found: false, msg: '총괄이 연결되지 않았습니다.' };
+  var sh = ss.getSheetByName(PROPOSAL_TAB);
+  if (!sh || sh.getLastRow() < 2) return { found: false };
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  var ci = headers.indexOf('고유번호');
+  var typeMap = { '온라인': 'online', '교육': 'offline', '행사': 'expo' };
+  for (var i = 0; i < data.length; i++) {
+    if (String(data[i][ci]).trim() === code) {
+      var row = data[i];
+      function g(name) { var j = headers.indexOf(name); return j >= 0 ? row[j] : ''; }
+      return {
+        found: true,
+        name: String(g('사업명') || ''), type: (typeMap[String(g('유형'))] || ''),
+        org: String(g('기관') || ''), dept: String(g('부서') || ''),
+        manager: String(g('담당자') || ''), budget: String(g('사업예산') || ''),
+        startDate: normDateInput_(g('사업일자'))
+      };
+    }
+  }
+  return { found: false };
+}
+
+function normDateInput_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone() || 'Asia/Seoul', 'yyyy-MM-dd');
+  var m = String(v || '').match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  return m ? (m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2)) : '';
+}
+
 function logProposal_(form, code, folderUrl, tz) {
-  var rollupId = PropertiesService.getScriptProperties().getProperty('ROLLUP_SS_ID');
-  if (!rollupId) return false;
-  var ss;
-  try { ss = SpreadsheetApp.openById(rollupId); } catch (e) { return false; }
+  var ss = rollupTargetSS_();
+  if (!ss) return false;
   var sh = ss.getSheetByName(PROPOSAL_TAB);
   if (!sh) {
     sh = ss.insertSheet(PROPOSAL_TAB);
@@ -1603,6 +1634,15 @@ var ROLLUP_HEADERS = ['고유번호', '사업명', '기관', '유형', '시작�
 
 function rollupProps_() { return PropertiesService.getScriptProperties(); }
 
+/** 기록 대상 총괄 시트: 연결ID 우선, 없으면 "지금 이 시트가 총괄이면" 자기 자신 */
+function rollupTargetSS_() {
+  var id = rollupProps_().getProperty('ROLLUP_SS_ID');
+  if (id) { try { return SpreadsheetApp.openById(id); } catch (e) {} }
+  var active = SpreadsheetApp.getActiveSpreadsheet();
+  if (active && (active.getSheetByName('사업총괄') || active.getSheetByName(PROPOSAL_TAB))) return active;
+  return null;
+}
+
 // ── 총괄 파일 새로 만들기 (내 드라이브에 생성 + 자동 연결) ─────
 function createRollupFile() {
   var ui = SpreadsheetApp.getUi();
@@ -1897,8 +1937,13 @@ function getDialogHtml() {
       </div>
     </div>
 
-    <label>고유번호 <span class="hint">(총괄 연동용 · 제안 때 나온 번호, 선택)</span></label>
-    <input name="code" placeholder="예: C260504_01" />
+    <label>고유번호 <span class="hint">(제안 때 나온 번호 · 입력 후 불러오기)</span></label>
+    <div style="display:flex;gap:8px;">
+      <input name="code" id="in-code" placeholder="예: C260504_01" style="flex:1;" />
+      <button type="button" id="loadBtn" onclick="loadProposal()"
+        style="flex:0 0 auto;width:auto;padding:8px 12px;border:1px solid #2b57d6;background:#eef4ff;color:#1f43ad;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;">제안 불러오기</button>
+    </div>
+    <div id="loadMsg" style="font-size:11px;color:#16a34a;margin-top:4px;min-height:14px;"></div>
 
     <div class="row">
       <div><label>기관</label><input name="org" placeholder="예: 경상국립대학교" /></div>
@@ -1934,6 +1979,26 @@ function getDialogHtml() {
   <div id="result"></div>
 
   <script>
+    function setVal(n, v){ var el=document.querySelector('[name="'+n+'"]'); if(el && v) el.value=v; }
+    function loadProposal(){
+      var code=document.getElementById('in-code').value.trim();
+      var msg=document.getElementById('loadMsg');
+      if(!code){ msg.style.color='#dc2626'; msg.textContent='고유번호를 먼저 입력하세요.'; return; }
+      var btn=document.getElementById('loadBtn'); btn.disabled=true; btn.textContent='불러오는 중…';
+      msg.style.color='#64748b'; msg.textContent='';
+      google.script.run.withSuccessHandler(function(p){
+        btn.disabled=false; btn.textContent='제안 불러오기';
+        if(!p || !p.found){ msg.style.color='#dc2626'; msg.textContent=(p&&p.msg)||'제안관리에서 해당 고유번호를 찾지 못했습니다.'; return; }
+        setVal('name',p.name); setVal('org',p.org); setVal('dept',p.dept); setVal('manager',p.manager);
+        setVal('budget',p.budget); if(p.startDate) setVal('startDate',p.startDate);
+        if(p.type){ var r=document.querySelector('input[name="type"][value="'+p.type+'"]'); if(r) r.checked=true; }
+        msg.style.color='#16a34a'; msg.textContent='제안 내용을 불러왔습니다. 확인 후 생성하세요.';
+      }).withFailureHandler(function(e){
+        btn.disabled=false; btn.textContent='제안 불러오기';
+        msg.style.color='#dc2626'; msg.textContent='오류: '+e.message;
+      }).lookupProposal(code);
+    }
+
     document.getElementById('f').addEventListener('submit', function (e) {
       e.preventDefault();
       var btn = document.getElementById('submit');

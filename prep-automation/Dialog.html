@@ -59,8 +59,13 @@
       </div>
     </div>
 
-    <label>고유번호 <span class="hint">(총괄 연동용 · 제안 때 나온 번호, 선택)</span></label>
-    <input name="code" placeholder="예: C260504_01" />
+    <label>고유번호 <span class="hint">(제안 때 나온 번호 · 입력 후 불러오기)</span></label>
+    <div style="display:flex;gap:8px;">
+      <input name="code" id="in-code" placeholder="예: C260504_01" style="flex:1;" />
+      <button type="button" id="loadBtn" onclick="loadProposal()"
+        style="flex:0 0 auto;width:auto;padding:8px 12px;border:1px solid #2b57d6;background:#eef4ff;color:#1f43ad;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;">제안 불러오기</button>
+    </div>
+    <div id="loadMsg" style="font-size:11px;color:#16a34a;margin-top:4px;min-height:14px;"></div>
 
     <div class="row">
       <div><label>기관</label><input name="org" placeholder="예: 경상국립대학교" /></div>
@@ -96,6 +101,26 @@
   <div id="result"></div>
 
   <script>
+    function setVal(n, v){ var el=document.querySelector('[name="'+n+'"]'); if(el && v) el.value=v; }
+    function loadProposal(){
+      var code=document.getElementById('in-code').value.trim();
+      var msg=document.getElementById('loadMsg');
+      if(!code){ msg.style.color='#dc2626'; msg.textContent='고유번호를 먼저 입력하세요.'; return; }
+      var btn=document.getElementById('loadBtn'); btn.disabled=true; btn.textContent='불러오는 중…';
+      msg.style.color='#64748b'; msg.textContent='';
+      google.script.run.withSuccessHandler(function(p){
+        btn.disabled=false; btn.textContent='제안 불러오기';
+        if(!p || !p.found){ msg.style.color='#dc2626'; msg.textContent=(p&&p.msg)||'제안관리에서 해당 고유번호를 찾지 못했습니다.'; return; }
+        setVal('name',p.name); setVal('org',p.org); setVal('dept',p.dept); setVal('manager',p.manager);
+        setVal('budget',p.budget); if(p.startDate) setVal('startDate',p.startDate);
+        if(p.type){ var r=document.querySelector('input[name="type"][value="'+p.type+'"]'); if(r) r.checked=true; }
+        msg.style.color='#16a34a'; msg.textContent='제안 내용을 불러왔습니다. 확인 후 생성하세요.';
+      }).withFailureHandler(function(e){
+        btn.disabled=false; btn.textContent='제안 불러오기';
+        msg.style.color='#dc2626'; msg.textContent='오류: '+e.message;
+      }).lookupProposal(code);
+    }
+
     document.getElementById('f').addEventListener('submit', function (e) {
       e.preventDefault();
       var btn = document.getElementById('submit');
