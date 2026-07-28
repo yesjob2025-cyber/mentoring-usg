@@ -1,0 +1,86 @@
+/**
+ * 제안 단계 — Drive 폴더 자동생성 + 총괄 기록
+ * =============================================================
+ * [🗂 새 제안 등록]에서 사업 정보를 입력하면:
+ *  - Drive에 "[고유번호] 사업명" 폴더 + 하위폴더(제안서/견적서/산출물/정산) 자동 생성
+ *  - 총괄 구글시트의 "제안관리(자동)" 탭에 한 줄 기록 (폴더 링크 포함)
+ * 사업이 확정되면 [＋ 새 사업 준비 시트 만들기]로 이어가면 된다.
+ */
+
+var PROPOSAL_TAB = '제안관리(자동)';
+var PROPOSAL_HEADERS = ['등록일', '고유번호', '유형', '구분', '사업명', '기관', '부서', '담당자', '연락처',
+  '사업예산', '사업일자', '제출일자', '사업내용', '폴더링크'];
+var PROPOSAL_SUBFOLDERS = ['1_제안서', '2_견적서', '3_산출물', '4_정산'];
+
+// ── 상위(루트) 폴더 ───────────────────────────────────────────
+function proposalRoot_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('PROPOSAL_ROOT_ID');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  var folder = DriveApp.createFolder('YESJOB 사업');
+  props.setProperty('PROPOSAL_ROOT_ID', folder.getId());
+  return folder;
+}
+
+function setProposalRoot() {
+  var ui = SpreadsheetApp.getUi();
+  var cur = PropertiesService.getScriptProperties().getProperty('PROPOSAL_ROOT_ID') || '(자동 생성됨)';
+  var res = ui.prompt('제안 폴더 위치 지정',
+    '사업 폴더들을 담을 상위 Drive 폴더의 URL 또는 ID를 붙여넣으세요.\n(비우면 "YESJOB 사업" 폴더를 자동 생성해 사용)\n\n현재: ' + cur,
+    ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  var raw = res.getResponseText().trim();
+  if (!raw) { PropertiesService.getScriptProperties().deleteProperty('PROPOSAL_ROOT_ID'); ui.alert('자동 생성 폴더를 사용합니다.'); return; }
+  var m = raw.match(/folders\/([a-zA-Z0-9_-]+)/);
+  var id = m ? m[1] : raw.replace(/[^a-zA-Z0-9_-]/g, '');
+  try { DriveApp.getFolderById(id); } catch (e) { ui.alert('폴더를 찾을 수 없습니다.'); return; }
+  PropertiesService.getScriptProperties().setProperty('PROPOSAL_ROOT_ID', id);
+  ui.alert('제안 폴더 위치가 설정되었습니다.');
+}
+
+// ── 다이얼로그 ────────────────────────────────────────────────
+function openProposalDialog() {
+  var html = HtmlService.createHtmlOutputFromFile('ProposalDialog').setWidth(460).setHeight(640);
+  SpreadsheetApp.getUi().showModalDialog(html, '새 제안 등록');
+}
+
+// ── 제안 생성 ─────────────────────────────────────────────────
+function createProposal(form) {
+  if (!form || !form.name) throw new Error('사업명은 필수입니다.');
+  var tz = Session.getScriptTimeZone() || 'Asia/Seoul';
+  var typeLetter = form.type === '교육' ? 'A' : form.type === '온라인' ? 'B' : 'C';
+
+  var code = String(form.code || '').trim();
+  if (!code) {
+    var digits = String(form.eventDate || '').replace(/[^0-9]/g, '');
+    var yymmdd = digits.length >= 8 ? digits.substr(2, 6) : Utilities.formatDate(new Date(), tz, 'yyMMdd');
+    code = typeLetter + yymmdd + '_01';
+  }
+
+  var root = proposalRoot_();
+  var folder = root.createFolder('[' + code + '] ' + form.name.trim());
+  PROPOSAL_SUBFOLDERS.forEach(function (s) { folder.createFolder(s); });
+
+  var logged = logProposal_(form, code, folder.getUrl(), tz);
+  return { ok: true, code: code, name: form.name.trim(), folderUrl: folder.getUrl(), logged: logged };
+}
+
+function logProposal_(form, code, folderUrl, tz) {
+  var rollupId = PropertiesService.getScriptProperties().getProperty('ROLLUP_SS_ID');
+  if (!rollupId) return false;
+  var ss;
+  try { ss = SpreadsheetApp.openById(rollupId); } catch (e) { return false; }
+  var sh = ss.getSheetByName(PROPOSAL_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(PROPOSAL_TAB);
+    sh.getRange(1, 1, 1, PROPOSAL_HEADERS.length).setValues([PROPOSAL_HEADERS])
+      .setFontWeight('bold').setBackground('#334155').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+  }
+  sh.appendRow([
+    Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), code, form.type || '', form.category || '',
+    form.name || '', form.org || '', form.dept || '', form.manager || '', form.contact || '',
+    form.budget || '', form.eventDate || '', form.dueDate || '', form.detail || '', folderUrl
+  ]);
+  return true;
+}

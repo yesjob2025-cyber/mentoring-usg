@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    *{box-sizing:border-box;}
+    body{font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;margin:0;padding:16px;color:#1e293b;font-size:13px;background:#f8fafc;}
+    h2{margin:0 0 4px;font-size:15px;}
+    p.sub{margin:0 0 14px;color:#64748b;font-size:12px;}
+    label{display:block;font-weight:600;margin:10px 0 4px;color:#475569;font-size:12px;}
+    .req::after{content:" *";color:#dc2626;}
+    input,select,textarea{width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:#3b6ef5;box-shadow:0 0 0 3px #dbeafe;}
+    .row{display:flex;gap:10px;}
+    .row>div{flex:1;}
+    .actions{margin-top:18px;display:flex;gap:8px;}
+    button{flex:1;padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+    .primary{background:#2b57d6;color:#fff;}
+    .primary:disabled{opacity:.5;}
+    .ghost{background:#e2e8f0;color:#334155;}
+    #result{margin-top:14px;padding:12px;border-radius:8px;background:#ecfdf5;border:1px solid #a7f3d0;display:none;}
+    #result a{color:#047857;font-weight:700;word-break:break-all;}
+    #err{margin-top:12px;color:#dc2626;font-size:12px;display:none;}
+    .hint{color:#94a3b8;font-size:11px;font-weight:400;}
+  </style>
+</head>
+<body>
+  <h2>새 제안 등록</h2>
+  <p class="sub">사업 폴더(제안서·견적서·산출물·정산)를 자동 생성하고, 총괄 "제안관리"에 기록합니다.</p>
+  <form id="f">
+    <label class="req">사업명</label>
+    <input name="name" required placeholder="예: 2026 OO대학교 취업캠프" />
+
+    <div class="row">
+      <div>
+        <label>유형</label>
+        <select name="type">
+          <option value="교육">교육 (A)</option>
+          <option value="온라인">온라인 (B)</option>
+          <option value="행사" selected>행사/박람회 (C)</option>
+        </select>
+      </div>
+      <div>
+        <label>구분 <span class="hint">(선택)</span></label>
+        <input name="category" placeholder="직무/취업/진로/특수 등" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div><label>기관</label><input name="org" /></div>
+      <div><label>부서</label><input name="dept" /></div>
+    </div>
+    <div class="row">
+      <div><label>담당자</label><input name="manager" /></div>
+      <div><label>연락처</label><input name="contact" /></div>
+    </div>
+
+    <div class="row">
+      <div><label>사업예산 (원)</label><input name="budget" inputmode="numeric" /></div>
+      <div><label>사업일자</label><input type="date" name="eventDate" /></div>
+    </div>
+    <div class="row">
+      <div><label>제출일자 <span class="hint">(선택)</span></label><input type="date" name="dueDate" /></div>
+      <div><label>고유번호 <span class="hint">(비우면 자동)</span></label><input name="code" placeholder="예: C260504_01" /></div>
+    </div>
+
+    <label>사업내용 <span class="hint">(선택)</span></label>
+    <textarea name="detail" rows="2"></textarea>
+
+    <div class="actions">
+      <button type="button" class="ghost" onclick="google.script.host.close()">취소</button>
+      <button type="submit" class="primary" id="submit">폴더 생성 + 등록</button>
+    </div>
+  </form>
+  <div id="err"></div>
+  <div id="result"></div>
+
+  <script>
+    document.getElementById('f').addEventListener('submit', function(e){
+      e.preventDefault();
+      var btn=document.getElementById('submit'), err=document.getElementById('err');
+      err.style.display='none'; btn.disabled=true; btn.textContent='생성 중…';
+      var form={}; new FormData(e.target).forEach(function(v,k){ form[k]=v; });
+      google.script.run.withSuccessHandler(function(res){
+        var r=document.getElementById('result'); r.style.display='block';
+        r.innerHTML='✅ <b>['+res.code+'] '+res.name+'</b> 폴더 생성됨'
+          + (res.logged?' · 총괄 기록됨':' · (총괄 미연결)') + '.<br>'
+          + '<a href="'+res.folderUrl+'" target="_blank">폴더 열기 →</a>';
+        btn.textContent='완료';
+      }).withFailureHandler(function(e2){
+        err.style.display='block'; err.textContent='오류: '+e2.message;
+        btn.disabled=false; btn.textContent='폴더 생성 + 등록';
+      }).createProposal(form);
+    });
+  </script>
+</body>
+</html>

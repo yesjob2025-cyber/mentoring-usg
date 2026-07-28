@@ -1,11 +1,11 @@
 /**
- * 교육사업 준비 자동화 — 올인원(단일 파일) v5
+ * 교육사업 준비 자동화 — 올인원(단일 파일) v6
  * =============================================================
  * 빈 구글 시트 → 확장 프로그램 → Apps Script → 이 내용 전체 붙여넣기 → 저장
  * → createSampleChecklist 실행해 권한 허용 → 시트 새로고침(F5) → [교육사업 준비] 메뉴.
  *
- * v4.1: 행사 페이지(분반/강사/출결QR) + 오픈채팅 연동
- * v5  : 총괄 연동 — 각 사업이 고유번호 기준으로 총괄 구글시트 "운영현황"에 자동 보고
+ * v5: 총괄 연동(운영현황 자동 보고)
+ * v6: 제안 단계 — 새 제안 등록 시 Drive 폴더(제안서/견적서/산출물/정산) 자동생성 + 총괄 제안관리 기록
  */
 
 // ===== 템플릿 =====
@@ -142,6 +142,7 @@ function getConfig() {
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('📋 교육사업 준비')
+    .addItem('🗂 새 제안 등록 (폴더 생성)', 'openProposalDialog')
     .addItem('＋ 새 사업 준비 시트 만들기', 'openDialog')
     .addSeparator()
     .addSubMenu(
@@ -176,7 +177,8 @@ function onOpen() {
         .addItem('자동 보고 끄기', 'disableAutoRollup')
     )
     .addSeparator()
-    .addItem('📂 저장 폴더 지정', 'setFolder')
+    .addItem('📂 저장 폴더 지정 (생성 시트)', 'setFolder')
+    .addItem('🗂 제안 폴더 위치 지정', 'setProposalRoot')
     .addItem('ℹ️ 사용 안내', 'showHelp')
     .addToUi();
 }
@@ -525,6 +527,94 @@ function toNumber(v) {
 
 function joinNonEmpty(arr, sep) {
   return arr.filter(function (x) { return x && String(x).trim(); }).join(sep);
+}
+
+// ===== 제안 단계 =====
+/**
+ * 제안 단계 — Drive 폴더 자동생성 + 총괄 기록
+ * =============================================================
+ * [🗂 새 제안 등록]에서 사업 정보를 입력하면:
+ *  - Drive에 "[고유번호] 사업명" 폴더 + 하위폴더(제안서/견적서/산출물/정산) 자동 생성
+ *  - 총괄 구글시트의 "제안관리(자동)" 탭에 한 줄 기록 (폴더 링크 포함)
+ * 사업이 확정되면 [＋ 새 사업 준비 시트 만들기]로 이어가면 된다.
+ */
+
+var PROPOSAL_TAB = '제안관리(자동)';
+var PROPOSAL_HEADERS = ['등록일', '고유번호', '유형', '구분', '사업명', '기관', '부서', '담당자', '연락처',
+  '사업예산', '사업일자', '제출일자', '사업내용', '폴더링크'];
+var PROPOSAL_SUBFOLDERS = ['1_제안서', '2_견적서', '3_산출물', '4_정산'];
+
+// ── 상위(루트) 폴더 ───────────────────────────────────────────
+function proposalRoot_() {
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty('PROPOSAL_ROOT_ID');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  var folder = DriveApp.createFolder('YESJOB 사업');
+  props.setProperty('PROPOSAL_ROOT_ID', folder.getId());
+  return folder;
+}
+
+function setProposalRoot() {
+  var ui = SpreadsheetApp.getUi();
+  var cur = PropertiesService.getScriptProperties().getProperty('PROPOSAL_ROOT_ID') || '(자동 생성됨)';
+  var res = ui.prompt('제안 폴더 위치 지정',
+    '사업 폴더들을 담을 상위 Drive 폴더의 URL 또는 ID를 붙여넣으세요.\n(비우면 "YESJOB 사업" 폴더를 자동 생성해 사용)\n\n현재: ' + cur,
+    ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  var raw = res.getResponseText().trim();
+  if (!raw) { PropertiesService.getScriptProperties().deleteProperty('PROPOSAL_ROOT_ID'); ui.alert('자동 생성 폴더를 사용합니다.'); return; }
+  var m = raw.match(/folders\/([a-zA-Z0-9_-]+)/);
+  var id = m ? m[1] : raw.replace(/[^a-zA-Z0-9_-]/g, '');
+  try { DriveApp.getFolderById(id); } catch (e) { ui.alert('폴더를 찾을 수 없습니다.'); return; }
+  PropertiesService.getScriptProperties().setProperty('PROPOSAL_ROOT_ID', id);
+  ui.alert('제안 폴더 위치가 설정되었습니다.');
+}
+
+// ── 다이얼로그 ────────────────────────────────────────────────
+function openProposalDialog() {
+  var html = HtmlService.createHtmlOutput(getProposalHtml()).setWidth(460).setHeight(640);
+  SpreadsheetApp.getUi().showModalDialog(html, '새 제안 등록');
+}
+
+// ── 제안 생성 ─────────────────────────────────────────────────
+function createProposal(form) {
+  if (!form || !form.name) throw new Error('사업명은 필수입니다.');
+  var tz = Session.getScriptTimeZone() || 'Asia/Seoul';
+  var typeLetter = form.type === '교육' ? 'A' : form.type === '온라인' ? 'B' : 'C';
+
+  var code = String(form.code || '').trim();
+  if (!code) {
+    var digits = String(form.eventDate || '').replace(/[^0-9]/g, '');
+    var yymmdd = digits.length >= 8 ? digits.substr(2, 6) : Utilities.formatDate(new Date(), tz, 'yyMMdd');
+    code = typeLetter + yymmdd + '_01';
+  }
+
+  var root = proposalRoot_();
+  var folder = root.createFolder('[' + code + '] ' + form.name.trim());
+  PROPOSAL_SUBFOLDERS.forEach(function (s) { folder.createFolder(s); });
+
+  var logged = logProposal_(form, code, folder.getUrl(), tz);
+  return { ok: true, code: code, name: form.name.trim(), folderUrl: folder.getUrl(), logged: logged };
+}
+
+function logProposal_(form, code, folderUrl, tz) {
+  var rollupId = PropertiesService.getScriptProperties().getProperty('ROLLUP_SS_ID');
+  if (!rollupId) return false;
+  var ss;
+  try { ss = SpreadsheetApp.openById(rollupId); } catch (e) { return false; }
+  var sh = ss.getSheetByName(PROPOSAL_TAB);
+  if (!sh) {
+    sh = ss.insertSheet(PROPOSAL_TAB);
+    sh.getRange(1, 1, 1, PROPOSAL_HEADERS.length).setValues([PROPOSAL_HEADERS])
+      .setFontWeight('bold').setBackground('#334155').setFontColor('#ffffff');
+    sh.setFrozenRows(1);
+  }
+  sh.appendRow([
+    Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'), code, form.type || '', form.category || '',
+    form.name || '', form.org || '', form.dept || '', form.manager || '', form.contact || '',
+    form.budget || '', form.eventDate || '', form.dueDate || '', form.detail || '', folderUrl
+  ]);
+  return true;
 }
 
 // ===== 산출물 생성기 =====
@@ -1646,7 +1736,7 @@ function disableAutoRollup() {
   SpreadsheetApp.getUi().alert(removed ? '자동 보고를 껐습니다.' : '켜져 있는 자동 보고가 없습니다.');
 }
 
-// ── 입력 다이얼로그 HTML (인라인) ─────
+// ── 입력 다이얼로그 HTML ─────
 function getDialogHtml() {
   return `<!DOCTYPE html>
 <html>
@@ -1776,7 +1866,7 @@ function getDialogHtml() {
 `;
 }
 
-// ── 행사 허브 페이지 HTML (인라인, 템플릿) ─────
+// ── 행사 허브 페이지 HTML (템플릿) ─────
 function getHubHtml() {
   return `<!DOCTYPE html>
 <html lang="ko">
@@ -2010,6 +2100,108 @@ function getHubHtml() {
 
   setInterval(function(){ if($('hub').style.display!=='none') loadState(); }, 30000);
 </script>
+</body>
+</html>
+`;
+}
+
+// ── 제안 등록 다이얼로그 HTML ─────
+function getProposalHtml() {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    *{box-sizing:border-box;}
+    body{font-family:-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;margin:0;padding:16px;color:#1e293b;font-size:13px;background:#f8fafc;}
+    h2{margin:0 0 4px;font-size:15px;}
+    p.sub{margin:0 0 14px;color:#64748b;font-size:12px;}
+    label{display:block;font-weight:600;margin:10px 0 4px;color:#475569;font-size:12px;}
+    .req::after{content:" *";color:#dc2626;}
+    input,select,textarea{width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;font-family:inherit;background:#fff;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:#3b6ef5;box-shadow:0 0 0 3px #dbeafe;}
+    .row{display:flex;gap:10px;}
+    .row>div{flex:1;}
+    .actions{margin-top:18px;display:flex;gap:8px;}
+    button{flex:1;padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;}
+    .primary{background:#2b57d6;color:#fff;}
+    .primary:disabled{opacity:.5;}
+    .ghost{background:#e2e8f0;color:#334155;}
+    #result{margin-top:14px;padding:12px;border-radius:8px;background:#ecfdf5;border:1px solid #a7f3d0;display:none;}
+    #result a{color:#047857;font-weight:700;word-break:break-all;}
+    #err{margin-top:12px;color:#dc2626;font-size:12px;display:none;}
+    .hint{color:#94a3b8;font-size:11px;font-weight:400;}
+  </style>
+</head>
+<body>
+  <h2>새 제안 등록</h2>
+  <p class="sub">사업 폴더(제안서·견적서·산출물·정산)를 자동 생성하고, 총괄 "제안관리"에 기록합니다.</p>
+  <form id="f">
+    <label class="req">사업명</label>
+    <input name="name" required placeholder="예: 2026 OO대학교 취업캠프" />
+
+    <div class="row">
+      <div>
+        <label>유형</label>
+        <select name="type">
+          <option value="교육">교육 (A)</option>
+          <option value="온라인">온라인 (B)</option>
+          <option value="행사" selected>행사/박람회 (C)</option>
+        </select>
+      </div>
+      <div>
+        <label>구분 <span class="hint">(선택)</span></label>
+        <input name="category" placeholder="직무/취업/진로/특수 등" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div><label>기관</label><input name="org" /></div>
+      <div><label>부서</label><input name="dept" /></div>
+    </div>
+    <div class="row">
+      <div><label>담당자</label><input name="manager" /></div>
+      <div><label>연락처</label><input name="contact" /></div>
+    </div>
+
+    <div class="row">
+      <div><label>사업예산 (원)</label><input name="budget" inputmode="numeric" /></div>
+      <div><label>사업일자</label><input type="date" name="eventDate" /></div>
+    </div>
+    <div class="row">
+      <div><label>제출일자 <span class="hint">(선택)</span></label><input type="date" name="dueDate" /></div>
+      <div><label>고유번호 <span class="hint">(비우면 자동)</span></label><input name="code" placeholder="예: C260504_01" /></div>
+    </div>
+
+    <label>사업내용 <span class="hint">(선택)</span></label>
+    <textarea name="detail" rows="2"></textarea>
+
+    <div class="actions">
+      <button type="button" class="ghost" onclick="google.script.host.close()">취소</button>
+      <button type="submit" class="primary" id="submit">폴더 생성 + 등록</button>
+    </div>
+  </form>
+  <div id="err"></div>
+  <div id="result"></div>
+
+  <script>
+    document.getElementById('f').addEventListener('submit', function(e){
+      e.preventDefault();
+      var btn=document.getElementById('submit'), err=document.getElementById('err');
+      err.style.display='none'; btn.disabled=true; btn.textContent='생성 중…';
+      var form={}; new FormData(e.target).forEach(function(v,k){ form[k]=v; });
+      google.script.run.withSuccessHandler(function(res){
+        var r=document.getElementById('result'); r.style.display='block';
+        r.innerHTML='✅ <b>['+res.code+'] '+res.name+'</b> 폴더 생성됨'
+          + (res.logged?' · 총괄 기록됨':' · (총괄 미연결)') + '.<br>'
+          + '<a href="'+res.folderUrl+'" target="_blank">폴더 열기 →</a>';
+        btn.textContent='완료';
+      }).withFailureHandler(function(e2){
+        err.style.display='block'; err.textContent='오류: '+e2.message;
+        btn.disabled=false; btn.textContent='폴더 생성 + 등록';
+      }).createProposal(form);
+    });
+  </script>
 </body>
 </html>
 `;

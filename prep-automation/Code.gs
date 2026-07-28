@@ -24,6 +24,7 @@ function getConfig() {
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('📋 교육사업 준비')
+    .addItem('🗂 새 제안 등록 (폴더 생성)', 'openProposalDialog')
     .addItem('＋ 새 사업 준비 시트 만들기', 'openDialog')
     .addSeparator()
     .addSubMenu(
@@ -58,7 +59,8 @@ function onOpen() {
         .addItem('자동 보고 끄기', 'disableAutoRollup')
     )
     .addSeparator()
-    .addItem('📂 저장 폴더 지정', 'setFolder')
+    .addItem('📂 저장 폴더 지정 (생성 시트)', 'setFolder')
+    .addItem('🗂 제안 폴더 위치 지정', 'setProposalRoot')
     .addItem('ℹ️ 사용 안내', 'showHelp')
     .addToUi();
 }
