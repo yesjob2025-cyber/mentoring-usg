@@ -19,6 +19,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized (SEED_SECRET 필요)" }, { status: 401 });
   }
   const doSend = url.searchParams.get("send") === "1";
+  const nameFilter = (url.searchParams.get("name") || "").trim(); // 특정 멘토만 재발송
 
   const [tokens, mentors, questions] = await Promise.all([
     all<AnswerToken>("answerTokens"),
@@ -39,6 +40,7 @@ export async function GET(req: Request) {
     if (!question) { skipped.orphanQuestion += 1; continue; }
     const phone = (mentor.kakaoPhone || "").replace(/[^0-9]/g, "");
     if (!phone || phone === COMMON) { skipped.unapproved += 1; continue; } // 미승인(공통번호) 제외
+    if (nameFilter && mentor.name !== nameFilter) continue; // 특정 멘토만 대상
     targets.push({
       token: t.token,
       mentorName: mentor.name,
