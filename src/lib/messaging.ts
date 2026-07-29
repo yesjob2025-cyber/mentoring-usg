@@ -26,10 +26,11 @@ export interface SendResult {
 interface AlimtalkPayload {
   to: string; // 수신 번호
   recvName: string;
-  tplCode: string; // 승인 템플릿 코드
+  tplCode: string; // 승인 템플릿 코드/ID
   subject: string;
   message: string;
   button?: { name: string; url: string };
+  variables?: Record<string, string>; // 알림톡 템플릿 변수(#{...})
 }
 
 async function sendViaAligo(p: AlimtalkPayload): Promise<SendResult> {
@@ -137,6 +138,66 @@ async function sendViaSolapi(p: AlimtalkPayload): Promise<SendResult> {
   }
 }
 
+async function sendViaSolapiAta(p: AlimtalkPayload): Promise<SendResult> {
+  const apiKey = process.env.SOLAPI_API_KEY;
+  const apiSecret = process.env.SOLAPI_API_SECRET;
+  const from = process.env.SOLAPI_SENDER || process.env.ALIGO_SENDER;
+  const pfId = process.env.SOLAPI_PFID;
+  if (!apiKey || !apiSecret || !from || !pfId || !p.tplCode) {
+    return {
+      ok: false,
+      provider: "solapi_ata",
+      to: p.to,
+      detail: "알림톡 환경변수(SOLAPI_PFID/템플릿ID/SOLAPI_SENDER) 누락",
+    };
+  }
+  // 알림톡 실패 시 문자(LMS)로 자동 대체할 본문
+  const smsFallback = p.button ? `${p.message}\n\n▶ ${p.button.name}\n${p.button.url}` : p.message;
+
+  const date = new Date().toISOString();
+  const salt = randomBytes(32).toString("hex");
+  const signature = createHmac("sha256", apiSecret).update(date + salt).digest("hex");
+  const authorization = `HMAC-SHA256 apiKey=${apiKey}, date=${date}, salt=${salt}, signature=${signature}`;
+
+  const body = {
+    message: {
+      to: p.to.replace(/[^0-9]/g, ""),
+      from: from.replace(/[^0-9]/g, ""),
+      text: smsFallback, // disableSms:false → 알림톡 불가 시 이 내용으로 문자 대체
+      kakaoOptions: {
+        pfId,
+        templateId: p.tplCode,
+        variables: p.variables || {},
+        disableSms: false,
+      },
+    },
+  };
+
+  try {
+    const res = await fetch("https://api.solapi.com/messages/v4/send", {
+      method: "POST",
+      headers: { Authorization: authorization, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const json = (await res.json()) as {
+      statusCode?: string;
+      statusMessage?: string;
+      errorMessage?: string;
+    };
+    if (res.ok && json.statusCode === "2000") {
+      return { ok: true, provider: "solapi_ata", to: p.to, detail: json.statusMessage };
+    }
+    return {
+      ok: false,
+      provider: "solapi_ata",
+      to: p.to,
+      detail: json.errorMessage || json.statusMessage || `발송 실패(${res.status})`,
+    };
+  } catch (e) {
+    return { ok: false, provider: "solapi_ata", to: p.to, detail: (e as Error).message };
+  }
+}
+
 async function sendViaAligoSms(p: AlimtalkPayload): Promise<SendResult> {
   const key = process.env.ALIGO_API_KEY || process.env.KAKAO_API_KEY;
   const userId = process.env.ALIGO_USER_ID;
@@ -190,6 +251,7 @@ function sendViaStub(p: AlimtalkPayload): SendResult {
 async function send(p: AlimtalkPayload): Promise<SendResult> {
   // 테스트 리다이렉트: 수신번호만 테스트 번호로 교체 (알림톡 템플릿 일치 위해 본문은 그대로)
   const payload: AlimtalkPayload = TEST_REDIRECT ? { ...p, to: TEST_REDIRECT } : p;
+  if (PROVIDER === "solapi_ata" || PROVIDER === "ata") return sendViaSolapiAta(payload);
   if (PROVIDER === "solapi") return sendViaSolapi(payload);
   if (PROVIDER === "aligo" || PROVIDER === "alimtalk") return sendViaAligo(payload);
   if (PROVIDER === "sms" || PROVIDER === "aligo_sms") return sendViaAligoSms(payload);
@@ -215,6 +277,12 @@ export async function notifyMentorNewQuestion(
       `▶ ${question.title}\n\n` +
       `아래 버튼을 눌러 답변을 작성해 주세요. 답변은 학생에게 카카오톡으로 전달됩니다.`,
     button: { name: "답변 작성하기", url },
+    // 알림톡 템플릿 A 변수 (등록한 변수명과 일치해야 함)
+    variables: {
+      "#{멘토명}": mentor.name,
+      "#{질문제목}": question.title,
+      "#{토큰}": answerToken,
+    },
   });
 }
 
@@ -237,6 +305,13 @@ export async function notifyStudentNewAnswer(
       `${answer.mentorName} 멘토: ${preview}\n\n` +
       `사이트에서 전체 답변을 확인하세요.`,
     button: { name: "답변 확인하기", url },
+    // 알림톡 템플릿 B 변수 (등록한 변수명과 일치해야 함)
+    variables: {
+      "#{학생명}": student.name,
+      "#{질문제목}": question.title,
+      "#{멘토명}": answer.mentorName,
+      "#{질문번호}": question.id,
+    },
   });
 }
 
@@ -252,7 +327,13 @@ export async function sendTestMessage(
     tplCode: process.env.KAKAO_TPL_NEW_QUESTION || "test",
     subject: "[YESJOB] 발송 테스트",
     message: "부울경 멘토링 발송 테스트 메시지입니다. 이 문자가 오면 연동 성공입니다.",
-    button: { name: "사이트 열기", url: SITE_URL },
+    button: { name: "답변 작성하기", url: `${SITE_URL}/answer/testtoken` },
+    // 알림톡(solapi_ata) 테스트용: 템플릿 A 변수
+    variables: {
+      "#{멘토명}": "테스트",
+      "#{질문제목}": "발송 테스트 질문입니다",
+      "#{토큰}": "testtoken",
+    },
   });
   return {
     ...result,
@@ -261,8 +342,9 @@ export async function sendTestMessage(
       SOLAPI_API_KEY: !!process.env.SOLAPI_API_KEY,
       SOLAPI_API_SECRET: !!process.env.SOLAPI_API_SECRET,
       SOLAPI_SENDER: !!(process.env.SOLAPI_SENDER || process.env.ALIGO_SENDER),
-      ALIGO_API_KEY: !!process.env.ALIGO_API_KEY,
-      ALIGO_SENDER: !!process.env.ALIGO_SENDER,
+      SOLAPI_PFID: !!process.env.SOLAPI_PFID,
+      KAKAO_TPL_NEW_QUESTION: !!process.env.KAKAO_TPL_NEW_QUESTION,
+      KAKAO_TPL_NEW_ANSWER: !!process.env.KAKAO_TPL_NEW_ANSWER,
       TEST_REDIRECT_PHONE: !!process.env.TEST_REDIRECT_PHONE,
     },
   };
