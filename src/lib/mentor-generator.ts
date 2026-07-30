@@ -400,8 +400,10 @@ type ConfirmedEntry = {
   // 승인 여부 + 실제 전화번호. 승인 멘토는 실번호, 미승인은 공통번호로 발송.
   approved?: boolean;
   phone?: string;
-  // 명단 제외(숨김) 대상 — 화면·발송에서 완전히 제외.
+  // 명단 제외(삭제) 대상 — pool/DB 에서 완전히 제외.
   removed?: boolean;
+  // 숨김(X) 대상 — DB엔 남기되 학생 화면·신규질문에서 제외(기존 링크 보존).
+  hidden?: boolean;
 };
 
 const CONFIRM_PHONE = "010-8553-6027";
@@ -515,9 +517,9 @@ export function buildConfirmedMentors(): Mentor[] {
       answerCount: 0,
       avgResponseHours: rint(rnd, 4, 24),
       participationScore: rint(rnd, 70, 99),
-      // 미승인 멘토도 노출 (질문은 공통번호로 발송)
-      active: true,
-      featured: true,
+      // hidden: 학생 화면에서 숨김(추천/신규질문 제외), 단 기존 답변 링크는 유지
+      active: entry.hidden !== true,
+      featured: entry.hidden !== true,
     } satisfies Mentor;
     })
     .filter((m): m is Mentor => m !== null);
