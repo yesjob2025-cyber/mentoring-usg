@@ -14,7 +14,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const m = await getMentorById(id);
-  return { title: m ? `${maskName(m.name)} 멘토` : "멘토" };
+  return { title: m && m.active ? `${maskName(m.name)} 멘토` : "멘토" };
 }
 
 export default async function MentorPage({
@@ -24,7 +24,8 @@ export default async function MentorPage({
 }) {
   const { id } = await params;
   const raw = await getMentorById(id);
-  if (!raw) notFound();
+  // 숨김/비활성 멘토는 프로필 페이지 비노출 (답변 기록만 게시판에 남음)
+  if (!raw || !raw.active) notFound();
   const m = toPublicMentor(raw);
   const questions = (await listPublicQuestions({ mentorId: id })).slice(0, 5);
 
