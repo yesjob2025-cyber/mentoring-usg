@@ -3,8 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LikeButton } from "./like-button";
-import { adoptAnswerAction, deleteAnswerAction } from "@/app/questions/actions";
-import { GRADES, GRADE_AMOUNT } from "@/lib/grades";
+import { deleteAnswerAction } from "@/app/questions/actions";
 import { formatKST } from "@/lib/format";
 import { maskName } from "@/lib/mask";
 
@@ -15,8 +14,6 @@ interface AnswerVM {
   body: string;
   createdAt: string;
   likes: number;
-  adopted: boolean;
-  payoutAmount: number;
 }
 
 export function AnswerCard({
@@ -24,21 +21,15 @@ export function AnswerCard({
   mentorCompany,
   mentorTitle,
   questionId,
-  isAdmin,
   isSuperAdmin,
 }: {
   answer: AnswerVM;
   mentorCompany?: string;
   mentorTitle?: string;
   questionId: string;
-  isAdmin: boolean;
   isSuperAdmin?: boolean;
 }) {
   const router = useRouter();
-  const [adopted, setAdopted] = useState(answer.adopted);
-  const [payout, setPayout] = useState(answer.payoutAmount);
-  const [grade, setGrade] = useState(GRADES[0]);
-  const [pending, startTransition] = useTransition();
   const [deleting, startDelete] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -52,21 +43,8 @@ export function AnswerCard({
     });
   }
 
-  function adopt() {
-    setError(null);
-    startTransition(async () => {
-      const res = await adoptAnswerAction(answer.id, questionId, grade);
-      if (res.ok) {
-        setAdopted(true);
-        setPayout(GRADE_AMOUNT[grade] ?? 0);
-      } else {
-        setError(res.error ?? "채택에 실패했습니다.");
-      }
-    });
-  }
-
   return (
-    <li className={`card p-5 ${adopted ? "ring-2 ring-brand-300" : ""}`}>
+    <li className="card p-5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-full bg-brand-100 font-bold text-brand-500">
@@ -79,9 +57,6 @@ export function AnswerCard({
             </p>
           </div>
         </div>
-        {adopted && (
-          <span className="badge bg-brand-300 text-ink">채택 · {payout.toLocaleString()}원</span>
-        )}
       </div>
 
       <p className="mt-3 whitespace-pre-wrap leading-relaxed text-ink-soft">{answer.body}</p>
@@ -98,24 +73,6 @@ export function AnswerCard({
             >
               {deleting ? "삭제 중…" : "삭제"}
             </button>
-          )}
-          {isAdmin && !adopted && (
-            <div className="flex items-center gap-1.5">
-              <select
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-                className="rounded-lg border border-ink-line bg-white px-2 py-1.5 text-xs"
-              >
-                {GRADES.map((g) => (
-                  <option key={g} value={g}>
-                    {g} · {(GRADE_AMOUNT[g] ?? 0).toLocaleString()}원
-                  </option>
-                ))}
-              </select>
-              <button onClick={adopt} disabled={pending} className="btn-primary px-3 py-1.5 text-xs">
-                {pending ? "처리중" : "채택"}
-              </button>
-            </div>
           )}
         </div>
       </div>

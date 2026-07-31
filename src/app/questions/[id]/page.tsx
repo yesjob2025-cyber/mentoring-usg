@@ -158,13 +158,10 @@ export default async function QuestionDetailPage({
                     body: a.body,
                     createdAt: a.createdAt,
                     likes: a.likes,
-                    adopted: a.adopted,
-                    payoutAmount: a.payoutAmount,
                   }}
                   mentorCompany={mentor?.company}
                   mentorTitle={mentor?.title}
                   questionId={question.id}
-                  isAdmin={isAdmin}
                   isSuperAdmin={isSuperAdmin}
                 />
               );
