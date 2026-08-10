@@ -35,11 +35,13 @@ export function ReservationPlanner({
   schedule,
   timeSlots,
   reservations,
+  zoomLinks,
   isLoggedIn,
 }: {
   schedule: ScheduleDay[];
   timeSlots: string[];
   reservations: Resv[];
+  zoomLinks: Record<string, string>;
   isLoggedIn: boolean;
 }) {
   const router = useRouter();
@@ -57,6 +59,7 @@ export function ReservationPlanner({
   const takenTimes = new Set(dayResv.map((r) => r.time));
   const reservedKey = new Set(dayResv.map((r) => `${r.track}|${r.topic}`));
   const dayFull = dayResv.length >= TALK_MAX_PER_DAY;
+  const zoomLink = zoomLinks[date] || "";
 
   function reset() {
     setPickTrack(null);
@@ -153,12 +156,27 @@ export function ReservationPlanner({
 
         {/* 내 예약 현황 (선택 날짜) */}
         <div className="mt-5 rounded-xl border border-ink-line bg-cream-50 p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-bold">
               {date.slice(5).replace("-", ".")} 내 예약{" "}
               <span className="text-brand-500">{dayResv.length}</span>
               <span className="text-ink-muted">/{TALK_MAX_PER_DAY}</span>
             </p>
+            {dayResv.length > 0 &&
+              (zoomLink ? (
+                <a
+                  href={zoomLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#2D8CFF] px-4 py-2 text-sm font-bold text-white transition hover:bg-[#2478e0]"
+                >
+                  🎥 Zoom 입장하기
+                </a>
+              ) : (
+                <span className="rounded-full bg-ink/5 px-3 py-1.5 text-xs font-semibold text-ink-muted">
+                  Zoom 링크 준비 중
+                </span>
+              ))}
           </div>
           {dayResv.length === 0 ? (
             <p className="mt-2 text-sm text-ink-muted">아직 예약이 없습니다. 아래에서 희망 멘토링과 시간을 선택하세요.</p>
@@ -177,10 +195,20 @@ export function ReservationPlanner({
                     {r.track}
                   </span>
                   <span className="truncate text-ink-soft">{r.topic}</span>
+                  {zoomLink && (
+                    <a
+                      href={zoomLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-auto shrink-0 rounded-full bg-[#2D8CFF] px-2.5 py-1 text-[11px] font-bold text-white hover:bg-[#2478e0]"
+                    >
+                      🎥 입장
+                    </a>
+                  )}
                   <button
                     onClick={() => cancel(r.id)}
                     disabled={pending}
-                    className="ml-auto shrink-0 text-xs text-ink-muted underline hover:text-red-600"
+                    className={`${zoomLink ? "" : "ml-auto "}shrink-0 text-xs text-ink-muted underline hover:text-red-600`}
                   >
                     취소
                   </button>

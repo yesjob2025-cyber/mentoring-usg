@@ -4,6 +4,7 @@ import { listTalkSessions, listSlotReservationsByUser } from "@/lib/repo";
 import type { TalkSession } from "@/lib/types";
 import { getSession } from "@/lib/session";
 import { TALK_TEST_SESSION_ID, TALK_TIME_SLOTS } from "@/lib/talk-config";
+import { ZOOM_LINKS } from "@/lib/zoom-links";
 import { ReservationPlanner } from "./reservation-planner";
 
 export const metadata: Metadata = {
@@ -121,6 +122,7 @@ export default async function TalkConcertPage() {
             schedule={schedule}
             timeSlots={[...TALK_TIME_SLOTS]}
             reservations={reservations}
+            zoomLinks={ZOOM_LINKS}
             isLoggedIn={isStudent}
           />
         </div>
