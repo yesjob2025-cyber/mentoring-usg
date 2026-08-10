@@ -11,10 +11,13 @@ import type {
   ThemeKind,
   TalkSession,
   TalkAttendance,
+  TalkReservation,
+  TalkTrack,
   AnswerToken,
   PayoutRecord,
   ActivityEvent,
 } from "./types";
+import { TALK_TIME_SLOTS, TALK_MAX_PER_DAY } from "./talk-config";
 
 const nowIso = () => new Date().toISOString();
 
@@ -433,6 +436,77 @@ export async function listTalkReservations(userId: string): Promise<TalkSession[
   return rows
     .filter((s) => (s.applicantUserIds ?? []).includes(userId))
     .sort((a, b) => a.date.localeCompare(b.date) || a.slot - b.slot);
+}
+
+// ── 토크콘서트 시간대 예약 (날짜 → 희망 멘토링 → 시간) ──────
+/** 학생 본인의 예약 전체 */
+export async function listSlotReservationsByUser(
+  userId: string
+): Promise<TalkReservation[]> {
+  const rows = await all<TalkReservation>("talkReservations");
+  return rows
+    .filter((r) => r.userId === userId)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+}
+
+/** 전체 예약 (학교 관리자·본사용) */
+export async function listAllSlotReservations(): Promise<TalkReservation[]> {
+  const rows = await all<TalkReservation>("talkReservations");
+  return rows.sort(
+    (a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)
+  );
+}
+
+/** 예약 생성. 규칙: 시간대(19/20/21시) 유효 · 하루 최대 3개 · 같은 시간대 중복 X · 같은 멘토링 중복 X */
+export async function createSlotReservation(
+  userId: string,
+  input: { date: string; time: string; track: TalkTrack; topic: string }
+): Promise<{ ok: boolean; error?: string; reservation?: TalkReservation }> {
+  if (!(TALK_TIME_SLOTS as readonly string[]).includes(input.time)) {
+    return { ok: false, error: "잘못된 시간대입니다." };
+  }
+  const user = await getUserById(userId);
+  if (!user) return { ok: false, error: "로그인 정보를 확인할 수 없습니다." };
+
+  const mine = (await all<TalkReservation>("talkReservations")).filter(
+    (r) => r.userId === userId && r.date === input.date
+  );
+  if (mine.length >= TALK_MAX_PER_DAY) {
+    return { ok: false, error: `하루 최대 ${TALK_MAX_PER_DAY}개까지 예약할 수 있습니다.` };
+  }
+  if (mine.some((r) => r.time === input.time)) {
+    return { ok: false, error: "이미 같은 시간대에 예약한 멘토링이 있습니다." };
+  }
+  if (mine.some((r) => r.track === input.track && r.topic === input.topic)) {
+    return { ok: false, error: "이미 예약한 멘토링입니다." };
+  }
+
+  const reservation: TalkReservation = {
+    id: newId("res"),
+    userId,
+    userName: user.name,
+    studentNo: user.studentNo,
+    schoolId: user.schoolId,
+    date: input.date,
+    time: input.time,
+    track: input.track,
+    topic: input.topic,
+    createdAt: nowIso(),
+  };
+  await insert("talkReservations", reservation as unknown as Record<string, unknown>);
+  return { ok: true, reservation };
+}
+
+/** 예약 취소 (본인 것만) */
+export async function cancelSlotReservation(
+  id: string,
+  userId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const r = await one<TalkReservation>("talkReservations", "id", id);
+  if (!r) return { ok: true };
+  if (r.userId !== userId) return { ok: false, error: "본인 예약만 취소할 수 있습니다." };
+  await remove("talkReservations", "id", id);
+  return { ok: true };
 }
 
 // ── 화상 교육장 출석 로그 ─────────────────────────────────

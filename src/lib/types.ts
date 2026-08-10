@@ -166,6 +166,20 @@ export interface TalkAttendance {
   leftAt?: string; // 퇴장 시 기록 (미기록이면 아직 참여 중)
 }
 
+/** 토크콘서트 시간대 예약 (날짜 → 희망 멘토링 → 시간, 1시간 단위, 하루 3개) */
+export interface TalkReservation {
+  id: string;
+  userId: string;
+  userName: string;
+  studentNo?: string;
+  schoolId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // "19:00" (1시간 단위)
+  track: TalkTrack;
+  topic: string;
+  createdAt: string;
+}
+
 export interface Database {
   schools: School[];
   users: User[];
@@ -177,4 +191,5 @@ export interface Database {
   activity: ActivityEvent[];
   talkSessions: TalkSession[];
   talkAttendance: TalkAttendance[];
+  talkReservations: TalkReservation[];
 }

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listTalkSessions } from "@/lib/repo";
+import { listTalkSessions, listSlotReservationsByUser } from "@/lib/repo";
 import type { TalkSession } from "@/lib/types";
-import { TALK_TEST_SESSION_ID } from "@/lib/talk-config";
+import { getSession } from "@/lib/session";
+import { TALK_TEST_SESSION_ID, TALK_TIME_SLOTS } from "@/lib/talk-config";
+import { ReservationPlanner } from "./reservation-planner";
 
 export const metadata: Metadata = {
   title: "온라인 토크콘서트",
@@ -41,6 +43,19 @@ export default async function TalkConcertPage() {
     byDate.set(s.date, arr);
   }
   const dates = [...byDate.keys()].sort();
+
+  // 예약 위저드용 데이터
+  const auth = await getSession();
+  const isStudent = auth?.role === "student" && !!auth.uid;
+  const reservations = isStudent ? await listSlotReservationsByUser(auth.uid!) : [];
+  const schedule = dates.map((date) => ({
+    date,
+    weekday: weekday(date),
+    mentorings: byDate
+      .get(date)!
+      .sort((a, b) => a.slot - b.slot)
+      .map((s) => ({ track: s.track, topic: topicText(s.topic) })),
+  }));
 
   return (
     <div className="container-page py-10">
@@ -91,6 +106,23 @@ export default async function TalkConcertPage() {
             <li>• 입사서류·면접 등 테마별 질문과 경험담 공유</li>
             <li>• 멘토링을 통해 나온 질문·답변은 사이트에 정리 업로드</li>
           </ul>
+        </div>
+      </section>
+
+      {/* 예약 */}
+      <section className="mt-12">
+        <h2 className="text-2xl font-extrabold">토크콘서트 예약</h2>
+        <p className="mt-1 text-ink-muted">
+          희망하는 날짜 → 멘토링 → 시간을 선택해 예약하세요. 시간대별로 1개씩, 하루 최대 3개까지
+          참여할 수 있습니다.
+        </p>
+        <div className="mt-6">
+          <ReservationPlanner
+            schedule={schedule}
+            timeSlots={[...TALK_TIME_SLOTS]}
+            reservations={reservations}
+            isLoggedIn={isStudent}
+          />
         </div>
       </section>
 
