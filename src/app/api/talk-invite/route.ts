@@ -41,6 +41,33 @@ export async function GET(req: Request) {
   const force = url.searchParams.get("force") === "1";
   if (!hasSupabase) return NextResponse.json({ error: "DB 미연결" }, { status: 500 });
 
+  // 샘플 발송: 멘토가 받는 것과 동일한 문자를 지정 번호로 1건 발송
+  //  ?secret=...&sample=1            → 010-8553-6027(공통번호)로
+  //  ?secret=...&sample=010-0000-0000 → 지정 번호로
+  const sample = url.searchParams.get("sample");
+  if (sample) {
+    const to = sample === "1" ? CONTACT_PHONE : sample;
+    const token = newToken();
+    const e = { date: "2026-08-24", slot: "인공지능" };
+    const link = `${INVITE_BASE}/${token}`;
+    const message = inviteMessage("홍길동", e, link);
+    // 링크가 실제로 열리도록 샘플 초대행 기록(이름에 [샘플] 표기)
+    await supabase()
+      .from(TABLE)
+      .insert({
+        token,
+        mentorId: null,
+        mentorName: "[샘플] 홍길동",
+        phone: to.replace(/[^0-9]/g, ""),
+        date: e.date,
+        slot: e.slot,
+        status: "sent",
+        createdAt: new Date().toISOString(),
+      });
+    const res = await sendInviteLms(to, "[YESJOB] 토크콘서트 멘토 섭외", message);
+    return NextResponse.json({ sample: true, to, ok: res.ok, detail: res.detail, link, message });
+  }
+
   // 실제 번호: JSON(mentor-pool-confirmed) 우선, 없으면 DB kakaoPhone(공통번호 제외)
   const jsonPhone = new Map<string, string>();
   for (const m of confirmedPool as PoolEntry[]) {
