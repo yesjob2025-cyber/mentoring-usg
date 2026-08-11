@@ -14,6 +14,7 @@ export const TALK_LINEUP: LineupEntry[] = [
   { date: "2026-08-24", slot: "자동차", name: "김동준" },
   { date: "2026-08-24", slot: "인사총무", name: "정현린" },
   { date: "2026-08-24", slot: "간호", name: "송채연" },
+  { date: "2026-08-24", slot: "한국남부발전", name: "연상헌" },
 
   { date: "2026-08-25", slot: "IT개발", name: "정재환" },
   { date: "2026-08-25", slot: "반도체", name: "김결" },
@@ -60,6 +61,7 @@ export const CONTACT_PHONE = "010-8553-6027";
 // 멘토풀(DB)/명단에 아직 없는 섭외 대상 — 이름→실번호 수동 등록(최우선 매칭).
 export const MANUAL_CONTACTS: Record<string, string> = {
   김우현: "010-6863-3788", // 삼성전자 영업마케팅 (마케팅 슬롯)
+  연상헌: "010-2467-9820", // 한국남부발전 (8/24)
 };
 
 export function weekdayKo(dateStr: string): string {
