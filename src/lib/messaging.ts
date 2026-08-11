@@ -317,6 +317,16 @@ export async function notifyStudentNewAnswer(
 
 export const messagingProvider = PROVIDER;
 
+/** 섭외 등 일반 LMS 발송 — provider 와 무관하게 솔라피 문자로 직접 발송(템플릿 불필요) */
+export async function sendInviteLms(
+  to: string,
+  subject: string,
+  message: string
+): Promise<SendResult> {
+  const target = TEST_REDIRECT || to;
+  return sendViaSolapi({ to: target, recvName: "", tplCode: "", subject, message });
+}
+
 /** 진단용 테스트 발송 — 현재 provider 로 간단한 메시지를 보내고 원본 결과 반환 */
 export async function sendTestMessage(
   to: string
