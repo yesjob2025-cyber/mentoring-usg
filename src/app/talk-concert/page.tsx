@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { listTalkSessions, listSlotReservationsByUser } from "@/lib/repo";
-import type { TalkSession } from "@/lib/types";
+import { listSlotReservationsByUser } from "@/lib/repo";
 import { getSession } from "@/lib/session";
-import { TALK_TEST_SESSION_ID, TALK_TIME_SLOTS } from "@/lib/talk-config";
-import { ZOOM_LINKS } from "@/lib/zoom-links";
+import { TALK_TIME_SLOTS } from "@/lib/talk-config";
+import { TALK_SCHEDULE, zoomFor, weekday } from "@/lib/talk-schedule";
 import { ReservationPlanner } from "./reservation-planner";
 
 export const metadata: Metadata = {
   title: "온라인 토크콘서트",
-  description: "8/24~9/3, 45명 현직자 릴레이 온라인 직무 토크콘서트 · 자체 화상 교육장",
+  description: "8/24~9/3, 45명 현직자 릴레이 온라인 직무 토크콘서트 · Zoom 화상 진행",
 };
 
 const TRACK_STYLE: Record<string, string> = {
@@ -20,42 +19,14 @@ const TRACK_STYLE: Record<string, string> = {
   공공: "bg-ink/5 text-ink-soft border-ink-line",
 };
 
-function weekday(dateStr: string) {
-  return ["일", "월", "화", "수", "목", "금", "토"][new Date(dateStr).getDay()];
-}
-
-// 기존 데이터에 "19:00 · 주제" 형태로 시간이 접두된 경우 시간 부분 제거
-// (5개 계열 동시 진행이라 회차별 시간 구분이 없음)
-function topicText(raw: string): string {
-  const parts = raw.split(" · ");
-  if (parts.length > 1 && /^\d{1,2}:\d{2}$/.test(parts[0].trim())) {
-    return parts.slice(1).join(" · ");
-  }
-  return raw;
-}
-
 export default async function TalkConcertPage() {
-  const sessions = await listTalkSessions();
-
-  const byDate = new Map<string, TalkSession[]>();
-  for (const s of sessions) {
-    const arr = byDate.get(s.date) ?? [];
-    arr.push(s);
-    byDate.set(s.date, arr);
-  }
-  const dates = [...byDate.keys()].sort();
-
-  // 예약 위저드용 데이터
   const auth = await getSession();
   const isStudent = auth?.role === "student" && !!auth.uid;
   const reservations = isStudent ? await listSlotReservationsByUser(auth.uid!) : [];
-  const schedule = dates.map((date) => ({
-    date,
-    weekday: weekday(date),
-    mentorings: byDate
-      .get(date)!
-      .sort((a, b) => a.slot - b.slot)
-      .map((s) => ({ track: s.track, topic: topicText(s.topic) })),
+  const schedule = TALK_SCHEDULE.map((d) => ({
+    date: d.date,
+    weekday: weekday(d.date),
+    mentorings: d.slots.map((s) => ({ track: s.track, topic: s.topic })),
   }));
 
   return (
@@ -67,8 +38,8 @@ export default async function TalkConcertPage() {
           45명 현직자 릴레이<br />온라인 직무 토크콘서트
         </h1>
         <p className="mt-4 max-w-xl text-cream-200/80">
-          매일 5명씩 9일간, 현장 실제 업무 이야기와 취업 노하우를 나눕니다. 사이트에서 바로 열리는
-          자체 화상 교육장에서 직무 멘토 특강(30분)과 자유 간담회(30분)로 진행됩니다.
+          매일 5명씩 9일간, 현장 실제 업무 이야기와 취업 노하우를 나눕니다. Zoom 화상으로 직무 멘토
+          특강(30분)과 자유 간담회(30분)로 진행됩니다.
         </p>
         <dl className="mt-8 flex flex-wrap gap-8">
           <div>
@@ -85,7 +56,7 @@ export default async function TalkConcertPage() {
           </div>
           <div>
             <dt className="text-sm text-cream-200/70">방식</dt>
-            <dd className="text-lg font-extrabold">자체 화상 교육장</dd>
+            <dd className="text-lg font-extrabold">Zoom 화상</dd>
           </div>
         </dl>
       </section>
@@ -122,81 +93,79 @@ export default async function TalkConcertPage() {
             schedule={schedule}
             timeSlots={[...TALK_TIME_SLOTS]}
             reservations={reservations}
-            zoomLinks={ZOOM_LINKS}
             isLoggedIn={isStudent}
           />
         </div>
       </section>
 
-      {/* 일정표 */}
+      {/* 일정표 (날짜 클릭 → Zoom 접속 안내) */}
       <section className="mt-12">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-extrabold">토크콘서트 일정</h2>
           <span className="badge bg-amber-50 text-amber-700">멘토 섭외 진행 중</span>
         </div>
         <p className="mt-1 text-ink-muted">
-          매일 19:00~22:00, 5개 계열(IT분야·공학·인문상경·보건복지·공공)이 동시에 진행됩니다. 섭외
-          일정에 따라 멘토가 순차 공개됩니다.
+          매일 19:00~22:00, 5개 계열(IT분야·공학·인문상경·보건복지·공공)이 동시에 진행됩니다.
+          <b className="text-ink-soft"> 날짜를 누르면 Zoom 접속 안내</b>가 열립니다.
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {dates.map((date) => {
-            const items = byDate.get(date)!.sort((a, b) => a.slot - b.slot);
+          {TALK_SCHEDULE.map((day) => {
+            const ready = Boolean(zoomFor(day.date)?.link);
             return (
-              <div key={date} className="card p-5">
+              <Link
+                key={day.date}
+                href={`/talk-concert/zoom/${day.date}`}
+                className="card group block p-5 transition hover:border-brand-300 hover:shadow-md"
+              >
                 <div className="flex items-center justify-between border-b border-ink-line pb-3">
                   <p className="font-extrabold">
-                    {date.slice(5).replace("-", ".")}{" "}
-                    <span className="text-ink-muted">({weekday(date)})</span>
+                    {day.date.slice(5).replace("-", ".")}{" "}
+                    <span className="text-ink-muted">({weekday(day.date)})</span>
                   </p>
-                  <span className="text-xs text-ink-muted">5개 계열 동시 · 19:00~22:00</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                      ready ? "bg-[#2D8CFF] text-white" : "bg-ink/5 text-ink-muted"
+                    }`}
+                  >
+                    {ready ? "🎥 Zoom 접속" : "접속 안내"}
+                  </span>
                 </div>
                 <ul className="mt-3 space-y-2">
-                  {items.map((s) => {
-                    const topic = topicText(s.topic);
-                    const isTest = s.id === TALK_TEST_SESSION_ID;
-                    return (
-                      <li key={s.id} className="flex items-center gap-2 text-sm">
-                        <span
-                          className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
-                            TRACK_STYLE[s.track] ?? "bg-ink/5 text-ink-soft border-ink-line"
-                          }`}
-                        >
-                          {s.track}
-                        </span>
-                        <span className="truncate text-ink-soft">{topic}</span>
-                        {isTest && (
-                          <Link
-                            href={`/talk-concert/room/${s.id}`}
-                            className="ml-auto shrink-0 rounded-full bg-brand-500 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-brand-600"
-                          >
-                            🔴 테스트 입장
-                          </Link>
-                        )}
-                      </li>
-                    );
-                  })}
+                  {day.slots.map((s) => (
+                    <li key={s.topic} className="flex items-center gap-2 text-sm">
+                      <span
+                        className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
+                          TRACK_STYLE[s.track] ?? "bg-ink/5 text-ink-soft border-ink-line"
+                        }`}
+                      >
+                        {s.track}
+                      </span>
+                      <span className="truncate text-ink-soft">{s.topic}</span>
+                    </li>
+                  ))}
                 </ul>
-              </div>
+                <p className="mt-3 text-right text-xs font-semibold text-brand-500 group-hover:underline">
+                  접속 안내 보기 →
+                </p>
+              </Link>
             );
           })}
         </div>
       </section>
 
-      {/* 자체 화상 교육장 안내 */}
+      {/* Zoom 참여 안내 */}
       <section className="mt-12 rounded-2xl border border-ink-line bg-cream-100 p-6 sm:p-8">
-        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 className="text-lg font-extrabold">자체 화상 교육장 (Zoom 불필요)</h3>
-            <p className="mt-1 max-w-xl text-sm text-ink-soft">
-              별도 프로그램 설치나 Zoom 계정 없이, 사이트 안에서 바로 화상 교육장이 열립니다. 브라우저에서
-              카메라·마이크 권한만 허용하면 되고, 참가 학생들이 같은 방에서 멘토 특강과 실시간 간담회에
-              참여합니다. 지금은 <b>테스트 회차 1개</b>만 입장할 수 있으며, 입장·퇴장 기록은 학교 관리자
-              대시보드에 출석 로그로 남습니다.
-            </p>
-          </div>
-          <span className="badge bg-emerald-50 text-emerald-700">브라우저에서 바로 참여</span>
-        </div>
+        <h3 className="text-lg font-extrabold">Zoom 참여 안내</h3>
+        <p className="mt-1 max-w-xl text-sm text-ink-soft">
+          해당 날짜 카드를 누르면 Zoom 링크·회의 ID·암호와 참여 방법이 안내됩니다. 원활한 진행을 위해
+          아래를 지켜주세요.
+        </p>
+        <ul className="mt-4 grid gap-2 sm:grid-cols-3">
+          <li className="rounded-lg bg-white p-3 text-sm text-ink-soft">🎥 <b>화면 ON</b> — 비디오를 켜고 참여</li>
+          <li className="rounded-lg bg-white p-3 text-sm text-ink-soft">🏷️ <b>대화명</b> — «학교 + 이름» (예: 부산대 홍길동)</li>
+          <li className="rounded-lg bg-white p-3 text-sm text-ink-soft">💬 <b>질문</b> — 채팅창으로 남기기</li>
+        </ul>
       </section>
 
       <section className="mt-10 text-center">
