@@ -4,7 +4,7 @@ import { supabase, hasSupabase } from "@/lib/supabase";
 import { newToken } from "@/lib/crypto";
 import { sendInviteLms } from "@/lib/messaging";
 import type { Mentor } from "@/lib/types";
-import { TALK_LINEUP, CONCERT_TIME, CONTACT_PHONE, weekdayKo } from "@/lib/talk-lineup";
+import { TALK_LINEUP, CONCERT_TIME, CONTACT_PHONE, MANUAL_CONTACTS, weekdayKo } from "@/lib/talk-lineup";
 import confirmedPool from "@/data/mentor-pool-confirmed.json";
 
 // 토크콘서트 섭외 문자 발송 (USG에서 발송, 수락 링크는 mting.kr 로 연결)
@@ -64,12 +64,13 @@ export async function GET(req: Request) {
       existing.set(`${r.mentorName}|${r.date}|${r.slot}`, r.status);
   }
 
-  // 라인업 해석
+  // 라인업 해석 (수동등록 > 명단 JSON > DB)
   const resolved = TALK_LINEUP.map((e) => {
+    const manual = MANUAL_CONTACTS[e.name];
     const jp = jsonPhone.get(e.name);
     const db = dbByName.get(e.name) ?? [];
-    let phone = jp ? jp.replace(/[^0-9]/g, "") : "";
-    let source = jp ? "명단" : "";
+    let phone = manual ? manual.replace(/[^0-9]/g, "") : jp ? jp.replace(/[^0-9]/g, "") : "";
+    let source = manual ? "수동" : jp ? "명단" : "";
     if (!phone && db.length === 1 && db[0].phone && db[0].phone !== COMMON) {
       phone = db[0].phone;
       source = "DB";

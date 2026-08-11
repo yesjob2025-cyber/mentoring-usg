@@ -57,6 +57,11 @@ export const TALK_LINEUP: LineupEntry[] = [
 export const CONCERT_TIME = "19:00~22:00";
 export const CONTACT_PHONE = "010-8553-6027";
 
+// 멘토풀(DB)/명단에 아직 없는 섭외 대상 — 이름→실번호 수동 등록(최우선 매칭).
+export const MANUAL_CONTACTS: Record<string, string> = {
+  김우현: "010-6863-3788", // 삼성전자 영업마케팅 (마케팅 슬롯)
+};
+
 export function weekdayKo(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
