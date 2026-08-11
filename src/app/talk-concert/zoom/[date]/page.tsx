@@ -8,6 +8,7 @@ import {
   CONCERT_TIME,
   JOIN_RULES,
 } from "@/lib/talk-schedule";
+import { companyBySlot } from "@/lib/talk-companies";
 
 export const metadata: Metadata = { title: "토크콘서트 화상 접속 안내" };
 
@@ -27,6 +28,9 @@ export default async function ZoomGuidePage({ params }: { params: Promise<{ date
   const zoom = zoomFor(date);
   const ready = Boolean(zoom?.link);
   const md = date.slice(5).replace("-", "월 ") + "일";
+  const companies = await companyBySlot();
+  const companyOf = (s: { track: string; topic: string }) =>
+    s.track === "공공" ? "" : companies[`${date}|${s.topic}`] || "";
 
   return (
     <div className="container-page max-w-2xl py-10">
@@ -48,16 +52,20 @@ export default async function ZoomGuidePage({ params }: { params: Promise<{ date
           {/* 오늘의 분야 */}
           <p className="field-label">이 날의 분야</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {day.slots.map((s) => (
-              <span
-                key={s.topic}
-                className={`rounded-md border px-2 py-1 text-xs font-semibold ${
-                  TRACK_STYLE[s.track] ?? "border-ink-line bg-ink/5 text-ink-soft"
-                }`}
-              >
-                {s.topic}
-              </span>
-            ))}
+            {day.slots.map((s) => {
+              const co = companyOf(s);
+              return (
+                <span
+                  key={s.topic}
+                  className={`rounded-md border px-2 py-1 text-xs font-semibold ${
+                    TRACK_STYLE[s.track] ?? "border-ink-line bg-ink/5 text-ink-soft"
+                  }`}
+                >
+                  {s.topic}
+                  {co && <span className="font-medium opacity-70"> · {co}</span>}
+                </span>
+              );
+            })}
           </div>
 
           {/* Zoom 접속 */}

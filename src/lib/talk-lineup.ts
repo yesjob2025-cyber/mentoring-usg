@@ -64,6 +64,12 @@ export const MANUAL_CONTACTS: Record<string, string> = {
   연상헌: "010-2467-9820", // 한국남부발전 (8/24)
 };
 
+// DB에 없는 섭외 멘토의 회사명(공개 일정 표기용) — 이름은 공개하지 않고 회사명만 노출.
+export const MANUAL_COMPANY: Record<string, string> = {
+  김우현: "삼성전자",
+  연상헌: "한국남부발전",
+};
+
 export function weekdayKo(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
   const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();

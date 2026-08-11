@@ -4,6 +4,7 @@ import { listSlotReservationsByUser } from "@/lib/repo";
 import { getSession } from "@/lib/session";
 import { TALK_TIME_SLOTS } from "@/lib/talk-config";
 import { TALK_SCHEDULE, zoomFor, weekday } from "@/lib/talk-schedule";
+import { companyBySlot } from "@/lib/talk-companies";
 import { ReservationPlanner } from "./reservation-planner";
 
 export const metadata: Metadata = {
@@ -22,11 +23,16 @@ const TRACK_STYLE: Record<string, string> = {
 export default async function TalkConcertPage() {
   const auth = await getSession();
   const isStudent = auth?.role === "student" && !!auth.uid;
-  const reservations = isStudent ? await listSlotReservationsByUser(auth.uid!) : [];
+  const [reservations, companies] = await Promise.all([
+    isStudent ? listSlotReservationsByUser(auth.uid!) : Promise.resolve([]),
+    companyBySlot(),
+  ]);
+  const companyOf = (date: string, s: { track: string; topic: string }) =>
+    s.track === "공공" ? "" : companies[`${date}|${s.topic}`] || "";
   const schedule = TALK_SCHEDULE.map((d) => ({
     date: d.date,
     weekday: weekday(d.date),
-    mentorings: d.slots.map((s) => ({ track: s.track, topic: s.topic })),
+    mentorings: d.slots.map((s) => ({ track: s.track, topic: s.topic, company: companyOf(d.date, s) })),
   }));
 
   return (
@@ -132,18 +138,24 @@ export default async function TalkConcertPage() {
                   </span>
                 </div>
                 <ul className="mt-3 space-y-2">
-                  {day.slots.map((s) => (
-                    <li key={s.topic} className="flex items-center gap-2 text-sm">
-                      <span
-                        className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
-                          TRACK_STYLE[s.track] ?? "bg-ink/5 text-ink-soft border-ink-line"
-                        }`}
-                      >
-                        {s.track}
-                      </span>
-                      <span className="truncate text-ink-soft">{s.topic}</span>
-                    </li>
-                  ))}
+                  {day.slots.map((s) => {
+                    const co = companyOf(day.date, s);
+                    return (
+                      <li key={s.topic} className="flex items-center gap-2 text-sm">
+                        <span
+                          className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
+                            TRACK_STYLE[s.track] ?? "bg-ink/5 text-ink-soft border-ink-line"
+                          }`}
+                        >
+                          {s.track}
+                        </span>
+                        <span className="truncate text-ink-soft">
+                          {s.topic}
+                          {co && <span className="text-ink-muted"> · {co}</span>}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <p className="mt-3 text-right text-xs font-semibold text-brand-500 group-hover:underline">
                   접속 안내 보기 →

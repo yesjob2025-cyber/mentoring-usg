@@ -9,6 +9,7 @@ import { slotLabel, TALK_MAX_PER_DAY } from "@/lib/talk-config";
 export interface Mentoring {
   track: string;
   topic: string;
+  company?: string;
 }
 export interface ScheduleDay {
   date: string;
@@ -241,7 +242,10 @@ export function ReservationPlanner({
                     >
                       {m.track}
                     </span>
-                    <p className="mt-1.5 text-sm font-bold text-ink">{m.topic}</p>
+                    <p className="mt-1.5 text-sm font-bold text-ink">
+                      {m.topic}
+                      {m.company && <span className="font-medium text-ink-muted"> · {m.company}</span>}
+                    </p>
                     {already && <p className="mt-0.5 text-[11px] font-semibold text-brand-500">예약됨</p>}
                   </button>
                 );
