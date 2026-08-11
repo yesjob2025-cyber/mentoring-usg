@@ -81,6 +81,14 @@ export async function GET(req: Request) {
     dbByName.set(m.name, arr);
   }
 
+  // 초기화: 미응답(발송됨) 초대 기록 삭제 → 잘못 생성된 기록 정리(수락/불가 기록은 보존)
+  const reset = url.searchParams.get("reset") === "1";
+  let resetDeleted: number | null = null;
+  if (reset) {
+    const del = await supabase().from(TABLE).delete().eq("status", "sent").select("token");
+    resetDeleted = del.error ? -1 : (del.data?.length ?? 0);
+  }
+
   // 기존 초대(중복 발송 방지) + 테이블 존재 확인
   let tableReady = true;
   const existing = new Map<string, string>(); // "name|date|slot" → status
@@ -125,6 +133,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       dryRun: true,
       note: "미리보기입니다. 실제 발송하려면 &send=1 을 붙이세요.",
+      resetDeleted,
       tableReady,
       tableHint: tableReady ? undefined : "talk_invites 테이블이 없습니다. supabase/talk-invites.sql 을 먼저 실행하세요.",
       total: resolved.length,
@@ -169,6 +178,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     dryRun: false,
+    resetDeleted,
     candidates: sendable.length,
     sent,
     failed: failures.length,
