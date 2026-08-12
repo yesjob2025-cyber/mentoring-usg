@@ -28,7 +28,7 @@ const TRACK_STYLE: Record<string, string> = {
   IT분야: "border-blue-200 bg-blue-50 text-blue-700",
   공학: "border-emerald-200 bg-emerald-50 text-emerald-700",
   인문상경: "border-brand-200 bg-brand-50 text-brand-500",
-  보건복지: "border-purple-200 bg-purple-50 text-purple-700",
+  기타: "border-purple-200 bg-purple-50 text-purple-700",
   공공: "border-ink-line bg-ink/5 text-ink-soft",
 };
 
