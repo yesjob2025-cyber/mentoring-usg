@@ -4,7 +4,7 @@ import { listSlotReservationsByUser } from "@/lib/repo";
 import { getSession } from "@/lib/session";
 import { TALK_TIME_SLOTS } from "@/lib/talk-config";
 import { TALK_SCHEDULE, zoomFor, weekday } from "@/lib/talk-schedule";
-import { companyBySlot } from "@/lib/talk-companies";
+import { profileIdByName } from "@/lib/talk-profiles";
 import { ReservationPlanner } from "./reservation-planner";
 
 export const metadata: Metadata = {
@@ -23,16 +23,14 @@ const TRACK_STYLE: Record<string, string> = {
 export default async function TalkConcertPage() {
   const auth = await getSession();
   const isStudent = auth?.role === "student" && !!auth.uid;
-  const [reservations, companies] = await Promise.all([
+  const [reservations, profileIds] = await Promise.all([
     isStudent ? listSlotReservationsByUser(auth.uid!) : Promise.resolve([]),
-    companyBySlot(),
+    profileIdByName(),
   ]);
-  const companyOf = (date: string, s: { track: string; topic: string }) =>
-    s.track === "공공" ? "" : companies[`${date}|${s.topic}`] || "";
   const schedule = TALK_SCHEDULE.map((d) => ({
     date: d.date,
     weekday: weekday(d.date),
-    mentorings: d.slots.map((s) => ({ track: s.track, topic: s.topic, company: companyOf(d.date, s) })),
+    mentorings: d.slots.map((s) => ({ track: s.track, topic: s.topic, company: s.company })),
   }));
 
   return (
@@ -111,37 +109,37 @@ export default async function TalkConcertPage() {
           <span className="badge bg-amber-50 text-amber-700">멘토 섭외 진행 중</span>
         </div>
         <p className="mt-1 text-ink-muted">
-          매일 19:00~22:00, 5개 계열(IT분야·공학·인문상경·보건복지·공공)이 동시에 진행됩니다.
-          <b className="text-ink-soft"> 날짜를 누르면 Zoom 접속 안내</b>가 열립니다.
+          매일 19:00~22:00, 5개 계열이 동시에 진행됩니다. 각 슬롯은 <b className="text-ink-soft">직무 · 기업</b>으로
+          표기되며, 프로필이 등록된 멘토는 눌러서 확인할 수 있습니다. <span className="text-ink-muted">(점선 = 변동 가능)</span>
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {TALK_SCHEDULE.map((day) => {
             const ready = Boolean(zoomFor(day.date)?.link);
             return (
-              <Link
-                key={day.date}
-                href={`/talk-concert/zoom/${day.date}`}
-                className="card group block p-5 transition hover:border-brand-300 hover:shadow-md"
-              >
+              <div key={day.date} className="card p-5">
                 <div className="flex items-center justify-between border-b border-ink-line pb-3">
                   <p className="font-extrabold">
                     {day.date.slice(5).replace("-", ".")}{" "}
                     <span className="text-ink-muted">({weekday(day.date)})</span>
                   </p>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                      ready ? "bg-[#2D8CFF] text-white" : "bg-ink/5 text-ink-muted"
+                  <Link
+                    href={`/talk-concert/zoom/${day.date}`}
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
+                      ready
+                        ? "bg-[#2D8CFF] text-white hover:bg-[#2478e0]"
+                        : "bg-ink/5 text-ink-soft hover:bg-ink/10"
                     }`}
                   >
                     {ready ? "🎥 Zoom 접속" : "접속 안내"}
-                  </span>
+                  </Link>
                 </div>
-                <ul className="mt-3 space-y-2">
+                <ul className="mt-3 space-y-1.5">
                   {day.slots.map((s) => {
-                    const co = companyOf(day.date, s);
-                    return (
-                      <li key={s.topic} className="flex items-center gap-2 text-sm">
+                    const label = s.company ? `${s.topic} · ${s.company}` : s.topic;
+                    const pid = s.mentor ? profileIds[s.mentor] : undefined;
+                    const inner = (
+                      <>
                         <span
                           className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[11px] font-semibold ${
                             TRACK_STYLE[s.track] ?? "bg-ink/5 text-ink-soft border-ink-line"
@@ -149,18 +147,35 @@ export default async function TalkConcertPage() {
                         >
                           {s.track}
                         </span>
-                        <span className="truncate text-ink-soft">
-                          {s.topic}
-                          {co && <span className="text-ink-muted"> · {co}</span>}
-                        </span>
+                        <span className="truncate">{label}</span>
+                        {!s.confirmed && (
+                          <span className="shrink-0 text-[10px] font-semibold text-amber-600">변동</span>
+                        )}
+                      </>
+                    );
+                    const base = `flex items-center gap-2 rounded-md px-1.5 py-1 text-sm ${
+                      s.confirmed ? "text-ink-soft" : "text-ink-muted border border-dashed border-ink-line"
+                    }`;
+                    return (
+                      <li key={`${s.topic}-${s.company}`}>
+                        {pid ? (
+                          <Link href={`/mentors/${pid}`} className={`${base} transition hover:bg-cream-100`}>
+                            {inner}
+                          </Link>
+                        ) : (
+                          <div className={base}>{inner}</div>
+                        )}
                       </li>
                     );
                   })}
                 </ul>
-                <p className="mt-3 text-right text-xs font-semibold text-brand-500 group-hover:underline">
-                  접속 안내 보기 →
-                </p>
-              </Link>
+                <Link
+                  href={`/talk-concert/zoom/${day.date}`}
+                  className="mt-3 block text-right text-xs font-semibold text-brand-500 hover:underline"
+                >
+                  Zoom 접속 안내 →
+                </Link>
+              </div>
             );
           })}
         </div>
