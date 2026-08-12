@@ -20,6 +20,7 @@ export const TALK_LINEUP: LineupEntry[] = [
   { date: "2026-08-25", slot: "반도체", name: "김결" },
   { date: "2026-08-25", slot: "회계", name: "이유경" },
   { date: "2026-08-25", slot: "중소벤처기업진흥공단", name: "이영운" },
+  { date: "2026-08-25", slot: "한국남부발전", name: "남태환" },
 
   { date: "2026-08-26", slot: "IT인프라", name: "정혜수" },
   { date: "2026-08-26", slot: "전기전자", name: "임세훈" },
