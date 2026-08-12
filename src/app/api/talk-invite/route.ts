@@ -17,6 +17,19 @@ const TABLE = "talk_invites";
 
 type PoolEntry = { name: string; phone?: string; removed?: boolean };
 
+function remindMessage(name: string, e: { date: string; slot: string }, url: string): string {
+  const wd = weekdayKo(e.date);
+  const md = e.date.slice(5).replace("-", "/");
+  return (
+    `[YESJOB 토크콘서트 멘토 섭외 · 재안내]\n` +
+    `안녕하세요 ${name}님, 앞서 보내드린 토크콘서트 멘토 섭외에 대해 아직 회신을 못 받아 다시 안내드립니다.\n\n` +
+    `${md}(${wd}) '${e.slot}' 분야 · ${CONCERT_TIME}\n` +
+    `· 방식: 온라인 화상(Zoom) — 직무 특강 + 자유 간담회\n\n` +
+    `아래 링크에서 참여 가능 여부를 눌러주세요.\n${url}\n\n` +
+    `문의: ${CONTACT_PHONE}`
+  );
+}
+
 function inviteMessage(name: string, e: { date: string; slot: string }, url: string): string {
   const wd = weekdayKo(e.date);
   const md = e.date.slice(5).replace("-", "/");
@@ -79,6 +92,40 @@ export async function GET(req: Request) {
     const arr = dbByName.get(m.name) ?? [];
     arr.push({ id: m.id, phone: (m.kakaoPhone || "").replace(/[^0-9]/g, "") });
     dbByName.set(m.name, arr);
+  }
+
+  // 재안내: 아직 응답(수락/불가) 안 한 멘토(status='sent')에게만 다시 발송.
+  //  ?secret=...&remind=1           → 미리보기(대상만)
+  //  ?secret=...&remind=1&send=1    → 실제 재발송
+  const remind = url.searchParams.get("remind") === "1";
+  if (remind) {
+    const { data, error } = await supabase()
+      .from(TABLE)
+      .select('token, "mentorName", phone, date, slot')
+      .eq("status", "sent")
+      .limit(10000);
+    if (error) return NextResponse.json({ error: `조회 실패: ${error.message}` }, { status: 500 });
+    const pending = (data ?? []) as { token: string; mentorName: string; phone: string; date: string; slot: string }[];
+
+    if (!doSend) {
+      return NextResponse.json({
+        dryRun: true,
+        remind: true,
+        note: "미응답(수락·불가 안 한) 멘토 대상입니다. 실제 재발송은 &remind=1&send=1.",
+        willRemind: pending.length,
+        preview: pending.map((p) => ({ name: p.mentorName, slot: p.slot, phone: p.phone })),
+      });
+    }
+
+    let sent = 0;
+    const failures: { name: string; detail?: string }[] = [];
+    for (const p of pending) {
+      const link = `${INVITE_BASE}/${p.token}`;
+      const res = await sendInviteLms(p.phone, "[YESJOB] 토크콘서트 멘토 섭외(재안내)", remindMessage(p.mentorName, p, link));
+      if (res.ok) sent += 1;
+      else failures.push({ name: p.mentorName, detail: res.detail });
+    }
+    return NextResponse.json({ dryRun: false, remind: true, candidates: pending.length, sent, failed: failures.length, failures: failures.slice(0, 30) });
   }
 
   // 초기화: 미응답(발송됨) 초대 기록 삭제 → 잘못 생성된 기록 정리(수락/불가 기록은 보존)
