@@ -38,7 +38,7 @@ export const TALK_LINEUP: LineupEntry[] = [
 
   { date: "2026-08-31", slot: "구매", name: "정윤" },
   { date: "2026-08-31", slot: "은행", name: "추용호" },
-  { date: "2026-08-31", slot: "부산교통공사", name: "정의훈" },
+  { date: "2026-08-31", slot: "부산교통공사", name: "배성림" },
 
   { date: "2026-09-01", slot: "데이터분석", name: "성명규" },
   { date: "2026-09-01", slot: "화학/철강", name: "설재욱" },
