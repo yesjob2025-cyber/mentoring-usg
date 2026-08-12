@@ -110,7 +110,7 @@ export default async function TalkConcertPage() {
         </div>
         <p className="mt-1 text-ink-muted">
           매일 19:00~22:00, 5개 계열이 동시에 진행됩니다. 각 슬롯은 <b className="text-ink-soft">직무 · 기업</b>으로
-          표기되며, 프로필이 등록된 멘토는 눌러서 확인할 수 있습니다. <span className="text-ink-muted">(점선 = 변동 가능)</span>
+          표기되며, 프로필이 등록된 멘토는 눌러서 확인할 수 있습니다.
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -148,14 +148,9 @@ export default async function TalkConcertPage() {
                           {s.track}
                         </span>
                         <span className="truncate">{label}</span>
-                        {!s.confirmed && (
-                          <span className="shrink-0 text-[10px] font-semibold text-amber-600">변동</span>
-                        )}
                       </>
                     );
-                    const base = `flex items-center gap-2 rounded-md px-1.5 py-1 text-sm ${
-                      s.confirmed ? "text-ink-soft" : "text-ink-muted border border-dashed border-ink-line"
-                    }`;
+                    const base = "flex items-center gap-2 rounded-md px-1.5 py-1 text-sm text-ink-soft";
                     return (
                       <li key={`${s.topic}-${s.company}`}>
                         {pid ? (
