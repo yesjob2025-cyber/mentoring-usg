@@ -201,6 +201,9 @@ export async function GET(req: Request) {
   let sent = 0;
   const failures: { name: string; detail?: string }[] = [];
   for (const r of sendable) {
+    // 교체 정리: 같은 (날짜·분야)에 다른 멘토의 기존 초대가 있으면 제거(중복/재안내 방지)
+    await supabase().from(TABLE).delete().eq("date", r.date).eq("slot", r.slot).neq("mentorName", r.name);
+
     const token = newToken();
     const link = `${INVITE_BASE}/${token}`;
     const row = {

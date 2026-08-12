@@ -12,7 +12,7 @@ export interface LineupEntry {
 export const TALK_LINEUP: LineupEntry[] = [
   { date: "2026-08-24", slot: "인공지능", name: "신호선" },
   { date: "2026-08-24", slot: "자동차", name: "김동준" },
-  { date: "2026-08-24", slot: "인사총무", name: "정현린" },
+  { date: "2026-08-24", slot: "인사총무", name: "김수연" },
   { date: "2026-08-24", slot: "간호", name: "송채연" },
   { date: "2026-08-24", slot: "한국남부발전", name: "연상헌" },
 
