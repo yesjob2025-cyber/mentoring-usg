@@ -37,6 +37,23 @@ const config: Config = {
           muted: "#867D6E",
           line: "#E7DECB",
         },
+        // 2026 김해 JOB FESTIVAL 브랜드 토큰
+        fest: {
+          navy: "#0A1B3D",
+          navy2: "#122A5C",
+          blue: "#1D6FF2",
+          blue2: "#4A93FF",
+          sky: "#E8F1FF",
+          coral: "#FF6B4A",
+          lime: "#B7F04A",
+          violet: "#7C5CFF",
+          emerald: "#12B886",
+          amber: "#FFB020",
+          ink: "#101828",
+          muted: "#667085",
+          line: "#E4E7EC",
+          bg: "#F6F8FC",
+        },
       },
       fontFamily: {
         sans: [

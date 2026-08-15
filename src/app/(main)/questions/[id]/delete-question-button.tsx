@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { deleteQuestionAction } from "@/app/questions/actions";
+import { deleteQuestionAction } from "../actions";
 
 export function DeleteQuestionButton({ questionId }: { questionId: string }) {
   const [pending, startTransition] = useTransition();

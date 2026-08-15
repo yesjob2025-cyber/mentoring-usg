@@ -154,3 +154,86 @@ KAKAO_TPL_NEW_ANSWER=...    # 승인된 템플릿 코드(학생용)
 ## 기술 스택
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS · jose(세션) ·
 데이터: 로컬 JSON 스토어(데모) → Supabase(프로덕션)
+
+---
+
+# 2026 김해 JOB FESTIVAL (jobfestival.co.kr)
+
+같은 Next.js 앱이 **두 개의 서비스**를 서빙합니다.
+
+| 도메인 | 서비스 | 라우트 |
+|--------|--------|--------|
+| mentoring 도메인 | 부울경 연합 멘토링 플랫폼 | `/` (`src/app/(main)`) |
+| **jobfestival.co.kr** | 2026 김해 JOB FESTIVAL | `/festival/*` |
+
+`src/middleware.ts` 가 `FESTIVAL_HOSTS` 에 등록된 도메인 요청의 경로 앞에 `/festival` 을
+붙여 rewrite 하므로, 방문자에게는 `https://jobfestival.co.kr/companies` 처럼 깔끔한 주소가
+보입니다. 링크는 `FestLink` 가 도메인에 맞춰 prefix 를 자동으로 붙입니다.
+
+## 행사 개요 (`src/lib/festival/config.ts` 한 곳에서 관리)
+
+- **사업명** 2026 김해 JOB FESTIVAL
+- **일시** 2026년 9월 10일(목) 10:00 ~ 17:00
+- **구성** 기업관 / 직무관 / 홍보관 / 부대행사
+- **주최** 김해시 · 인제대 · 가야대 · 영산대 · 김해대
+
+## 화면 구성
+
+| 경로 (축제 도메인 기준) | 설명 |
+|------|------|
+| `/` | 메인 — 4개 관 소개, 참여 코스, 현장 이용 흐름, 참가기업 미리보기 |
+| `/about` | 행사안내 — 개요, 행사장 구성, 당일 운영 시간표 |
+| `/companies` · `/companies/[id]` | **기업관** 전체 리스트(검색·산업·고용형태·면접운영 필터) → 기업 상세(모집직무·면접 시간표) |
+| `/companies/[id]/apply` | **입사지원** 폼 (사전등록자, 직무 선택 → 지원서 제출) |
+| `/jobs` · `/jobs/[id]` | **직무관** 전체 리스트(계열 탭·검색) → 직무 상세(업무·역량·자격·커리어 경로·채용기업) |
+| `/promos` | **홍보관** 참여 기관 전체 리스트(서비스·지원대상) |
+| `/events` | **부대행사** 전체 프로그램(시간·정원·예약 여부) |
+| `/guide` | 참여방법 — JOB/Career 코스, 사전 매칭, QR 이용 흐름, 스탬프 이벤트, FAQ |
+| `/register` | 사전등록 → 입장 QR 즉시 발급 |
+| `/pass` | **내 입장권** — QR·확인코드, 자동 추천 부스, 스탬프 현황, 지원 현황·면접 시간 선택, 참여 이력 |
+| `/pass/find` · `/pass/survey` · `/pass/done` | 입장권 찾기 / 만족도 설문 / 마무리 |
+| `/p/[token]` | QR 스캔 시 열리는 참가자 확인 페이지 (부스 운영자용) |
+| `/staff` · `/staff/scan` | **부스 운영자** 로그인(부스 선택 + 운영 PIN) → QR 스캔·코드 입력 체크인 |
+| `/admin` | 운영 관리 대시보드 (등록·입장·체크인·지원·면접·만족도 집계, CSV 내보내기) |
+
+## 입퇴장 · 참여 체크 흐름
+
+```
+사전등록(관심 직무·코스) → 입장 QR + 6자리 코드 발급
+   → 입장 게이트 체크인(enteredAt 기록) → 코스/관심사 기반 부스 자동 추천
+   → 부스별 체크인(관별 스탬프 적립, 동일 부스 중복은 1건만 기록)
+   → 4개 관 완주 시 완주 코드 발급 → 종합안내부스에서 경품 지급 처리
+   → 만족도 설문 → 참여 마무리 요약
+```
+
+- QR 내용은 `https://jobfestival.co.kr/p/<token>` 절대 URL 이라 어떤 QR 앱으로 찍어도 열립니다.
+  부스 기기가 로그인되어 있으면 그 화면에서 바로 체크인됩니다.
+- `/staff/scan` 은 브라우저 `BarcodeDetector` 지원 시 카메라 연속 스캔, 미지원 시 6자리 코드
+  직접 입력으로 동작합니다.
+- 입사지원 → 마이페이지에서 기업별 30분 단위 면접 슬롯을 선택(정원·시간 중복 체크)합니다.
+
+## 운영 설정
+
+```env
+FESTIVAL_HOSTS="jobfestival.co.kr,www.jobfestival.co.kr"
+FEST_STAFF_PIN="2026"          # 부스 운영자 공용 PIN — 운영 전 반드시 변경
+FEST_ADMIN_PASSWORD="..."      # /admin 접근 비밀번호 (기본값 kimhae2026!)
+```
+
+## 부스 데이터 교체
+
+`src/lib/festival/seed.ts` 의 기업/직무/기관/부대행사는 **화면 확인용 샘플 데이터**입니다.
+참가 확정 명단으로 교체한 뒤:
+
+- JSON 백엔드(데모): `npm run reset-db` 후 재시작하면 새 시드가 반영됩니다.
+- Supabase(운영): `supabase/festival-schema.sql` 실행 → `/api/seed?secret=<SEED_SECRET>&only=festival`
+  (기존 부스 데이터를 갈아끼우려면 `&force=1`)
+
+> 참가자·지원·체크인 데이터는 `force` 를 써도 삭제되지 않습니다.
+
+## 도메인 연결 (Vercel 기준)
+
+1. Vercel 프로젝트 → Settings → Domains 에 `jobfestival.co.kr`, `www.jobfestival.co.kr` 추가
+2. 도메인 등록기관 DNS 에 Vercel 이 안내하는 A / CNAME 레코드 등록
+3. 환경변수 `FESTIVAL_HOSTS` 에 두 도메인을 등록하고 재배포
+4. 접속 확인 — `jobfestival.co.kr/` 이 축제 메인으로, 기존 도메인은 멘토링 사이트로 동작

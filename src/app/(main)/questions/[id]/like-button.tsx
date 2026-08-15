@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { likeQuestionAction, likeAnswerAction } from "@/app/questions/actions";
+import { likeQuestionAction, likeAnswerAction } from "../actions";
 
 export function LikeButton({
   kind,
