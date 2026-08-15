@@ -2,8 +2,6 @@
 // 도메인 타입
 // ─────────────────────────────────────────────────────────────
 
-import type { FestivalDatabase } from "./festival/types";
-
 export type ThemeKind = "industry" | "job" | "company" | "type" | "major";
 
 /** 테마 항목 (산업/직무/기업/유형/전공 공통) */
@@ -182,7 +180,7 @@ export interface TalkReservation {
   createdAt: string;
 }
 
-export interface Database extends FestivalDatabase {
+export interface Database {
   schools: School[];
   users: User[];
   mentors: Mentor[];

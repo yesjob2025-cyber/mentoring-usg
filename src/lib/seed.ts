@@ -12,7 +12,6 @@ import type {
 import { hashPassword } from "./crypto";
 import { buildConfirmedMentors } from "./mentor-generator";
 import { industries, jobs } from "./taxonomy";
-import { buildFestivalSeed } from "./festival/seed";
 
 const NOW = "2026-07-19T09:00:00.000Z";
 
@@ -210,6 +209,5 @@ export function buildSeed(): Database {
     talkSessions: buildTalkSessions(),
     talkAttendance: [],
     talkReservations: [],
-    ...buildFestivalSeed(),
   };
 }

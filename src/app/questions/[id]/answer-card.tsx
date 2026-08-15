@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { LikeButton } from "./like-button";
-import { deleteAnswerAction } from "../actions";
+import { deleteAnswerAction } from "@/app/questions/actions";
 import { formatKST } from "@/lib/format";
 import { maskName } from "@/lib/mask";
 

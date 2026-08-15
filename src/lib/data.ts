@@ -25,28 +25,9 @@ const TABLE: Record<Collection, string> = {
   talkSessions: "talk_sessions",
   talkAttendance: "talk_attendance",
   talkReservations: "talk_reservations",
-  // 2026 김해 JOB FESTIVAL
-  festCompanies: "fest_companies",
-  festJobs: "fest_jobs",
-  festPromos: "fest_promos",
-  festEvents: "fest_events",
-  festVisitors: "fest_visitors",
-  festCheckins: "fest_checkins",
-  festApplications: "fest_applications",
-  festInterviewSlots: "fest_interview_slots",
-  festInterviews: "fest_interviews",
-  festStamps: "fest_stamps",
-  festSurveys: "fest_surveys",
 };
 
 export const usingSupabase = hasSupabase;
-
-/** 로컬 JSON 스토어 접근 (기존 db.json 에 없는 신규 컬렉션은 즉시 생성) */
-function localRows(c: Collection): Record<string, unknown>[] {
-  const d = db() as unknown as Record<string, unknown[]>;
-  if (!Array.isArray(d[c])) d[c] = [];
-  return d[c] as Record<string, unknown>[];
-}
 
 export async function all<T = Record<string, unknown>>(c: Collection): Promise<T[]> {
   if (hasSupabase) {
@@ -54,7 +35,7 @@ export async function all<T = Record<string, unknown>>(c: Collection): Promise<T
     if (error) throw new Error(`[data.all ${c}] ${error.message}`);
     return (data ?? []) as T[];
   }
-  return localRows(c).map((x) => ({ ...x })) as unknown as T[];
+  return (db()[c] as unknown as T[]).map((x) => ({ ...(x as object) })) as T[];
 }
 
 export async function one<T = Record<string, unknown>>(
@@ -71,7 +52,8 @@ export async function one<T = Record<string, unknown>>(
     if (error) throw new Error(`[data.one ${c}] ${error.message}`);
     return (data ?? undefined) as T | undefined;
   }
-  return localRows(c).find((r) => r[idField] === idValue) as T | undefined;
+  const rows = db()[c] as unknown as Record<string, unknown>[];
+  return rows.find((r) => r[idField] === idValue) as T | undefined;
 }
 
 export async function insert(c: Collection, row: Record<string, unknown>): Promise<void> {
@@ -80,7 +62,7 @@ export async function insert(c: Collection, row: Record<string, unknown>): Promi
     if (error) throw new Error(`[data.insert ${c}] ${error.message}`);
     return;
   }
-  localRows(c).push(row);
+  (db()[c] as unknown as Record<string, unknown>[]).push(row);
   persist();
 }
 
@@ -94,7 +76,7 @@ export async function insertMany(c: Collection, rows: Record<string, unknown>[])
     }
     return;
   }
-  localRows(c).push(...rows);
+  (db()[c] as unknown as Record<string, unknown>[]).push(...rows);
   persist();
 }
 
@@ -109,7 +91,7 @@ export async function patch(
     if (error) throw new Error(`[data.patch ${c}] ${error.message}`);
     return;
   }
-  const rows = localRows(c);
+  const rows = db()[c] as unknown as Record<string, unknown>[];
   const row = rows.find((r) => r[idField] === idValue);
   if (row) Object.assign(row, changes);
   persist();
@@ -121,7 +103,7 @@ export async function remove(c: Collection, idField: string, idValue: string): P
     if (error) throw new Error(`[data.remove ${c}] ${error.message}`);
     return;
   }
-  const rows = localRows(c);
+  const rows = db()[c] as unknown as Record<string, unknown>[];
   const idx = rows.findIndex((r) => r[idField] === idValue);
   if (idx >= 0) rows.splice(idx, 1);
   persist();
@@ -134,7 +116,7 @@ export async function clear(c: Collection): Promise<void> {
     if (error) throw new Error(`[data.clear ${c}] ${error.message}`);
     return;
   }
-  localRows(c).length = 0;
+  (db()[c] as unknown[]).length = 0;
   persist();
 }
 
@@ -146,5 +128,5 @@ export async function count(c: Collection): Promise<number> {
     if (error) throw new Error(`[data.count ${c}] ${error.message}`);
     return n ?? 0;
   }
-  return localRows(c).length;
+  return (db()[c] as unknown[]).length;
 }
