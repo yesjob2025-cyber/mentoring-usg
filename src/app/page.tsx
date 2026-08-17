@@ -102,6 +102,25 @@ export default async function HomePage() {
             cta="예약하고 참여하기"
           />
         </div>
+
+        {/* 일 강점 진단 */}
+        <div className="mt-6 rounded-2xl border border-brand-200 bg-brand-50 px-6 py-6 sm:px-8 sm:py-7">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="max-w-2xl">
+              <span className="chip-brand">③ 일 강점 진단</span>
+              <h3 className="mt-3 text-xl font-extrabold sm:text-2xl">
+                &lsquo;긍정·경청·꼼꼼&rsquo; 말고, 일하는 관점의 내 강점 찾기
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+                일하는 방식 6유형 · 24개 무기로 진단하고, MBTI·직업적성검사 결과까지 교차 분석합니다. 사례로
+                이미지화한 뒤 내 경험을 붙이면 이력서 한 줄과 자기소개서 초안이 나옵니다.
+              </p>
+            </div>
+            <Link href="/strength" className="btn-primary">
+              진단하고 서류 전략 만들기
+            </Link>
+          </div>
+        </div>
       </section>
 
       {/* 질문 프로세스 */}

@@ -64,6 +64,25 @@ body {
   }
 }
 
+/* 인쇄(일 강점 진단 결과 → PDF 저장) */
+@media print {
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+  a[href]::after {
+    content: "";
+  }
+}
+
 /* 얇은 스크롤바 */
 * {
   scrollbar-width: thin;

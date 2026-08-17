@@ -3,6 +3,7 @@ import type { SessionData } from "@/lib/session";
 import { logoutAction } from "@/app/actions/auth";
 
 const NAV = [
+  { href: "/strength", label: "일 강점 진단" },
   { href: "/qna", label: "실시간 Q&A" },
   { href: "/questions", label: "질문 게시판" },
   { href: "/talk-concert", label: "토크콘서트" },
