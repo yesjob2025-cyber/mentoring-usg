@@ -92,20 +92,20 @@ export interface ZoomSession {
   pw: string;
   host: string;
 }
-export const ZOOM_SESSIONS: Record<string, ZoomSession> = {
-  "2026-08-24": { link: "", id: "", pw: "", host: "" },
-  "2026-08-25": { link: "", id: "", pw: "", host: "" },
-  "2026-08-26": { link: "", id: "", pw: "", host: "" },
-  "2026-08-27": { link: "", id: "", pw: "", host: "" },
-  "2026-08-28": { link: "", id: "", pw: "", host: "" },
-  "2026-08-31": { link: "", id: "", pw: "", host: "" },
-  "2026-09-01": { link: "", id: "", pw: "", host: "" },
-  "2026-09-02": { link: "", id: "", pw: "", host: "" },
-  "2026-09-03": { link: "", id: "", pw: "", host: "" },
+// 모든 일정 동일한 Zoom 회의 정보.
+const SHARED_ZOOM: ZoomSession = {
+  link: "https://us06web.zoom.us/j/81187066933?pwd=skxwC7idpUQNAbH93mTtmFTHaSmPoQ.1",
+  id: "811 8706 6933",
+  pw: "a1234",
+  host: "",
 };
 
+export const ZOOM_SESSIONS: Record<string, ZoomSession> = Object.fromEntries(
+  TALK_SCHEDULE.map((d) => [d.date, SHARED_ZOOM])
+);
+
 export function zoomFor(date: string): ZoomSession | undefined {
-  return ZOOM_SESSIONS[date];
+  return ZOOM_SESSIONS[date] ?? (TALK_SCHEDULE.some((d) => d.date === date) ? SHARED_ZOOM : undefined);
 }
 
 export const CONCERT_TIME = "19:00~22:00";
