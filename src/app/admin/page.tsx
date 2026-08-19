@@ -10,13 +10,46 @@ import {
   userIdentityMap,
   answerCountByQuestion,
   mentorQnaStats,
+  listSlotReservationsBySchool,
+  listAllSlotReservations,
+  listSchools,
 } from "@/lib/repo";
 import { themeMeta } from "@/lib/taxonomy";
 import { formatKST, formatKSTDate } from "@/lib/format";
 import { TALK_TEST_SESSION_ID } from "@/lib/talk-config";
-import type { ThemeKind, TalkAttendance } from "@/lib/types";
+import { TALK_SCHEDULE, weekday as talkWeekday } from "@/lib/talk-schedule";
+import type { ThemeKind, TalkAttendance, TalkReservation } from "@/lib/types";
 import { SchoolQuestions, type SchoolQuestionRow } from "./school-questions";
 import { MentorQna, type MentorQnaRow } from "./mentor-qna";
+import { TalkReservations, type ResRow } from "./talk-reservations";
+
+// (date|topic) → 기업명 (예약에 저장 안 된 회사명을 일정표에서 보강)
+const COMPANY_BY_SLOT = new Map<string, string>(
+  TALK_SCHEDULE.flatMap((d) => d.slots.map((s) => [`${d.date}|${s.topic}`, s.company] as const))
+);
+
+async function buildResRows(
+  reservations: TalkReservation[],
+  withSchool: boolean
+): Promise<ResRow[]> {
+  const schoolName = new Map<string, string>();
+  if (withSchool) {
+    for (const s of await listSchools()) schoolName.set(s.id, s.name);
+  }
+  return reservations.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    name: r.userName,
+    studentNo: r.studentNo ?? "",
+    school: withSchool ? schoolName.get(r.schoolId) ?? r.schoolId : "",
+    date: r.date,
+    weekday: talkWeekday(r.date),
+    time: r.time,
+    topic: r.topic,
+    company: COMPANY_BY_SLOT.get(`${r.date}|${r.topic}`) ?? "",
+    track: r.track,
+  }));
+}
 
 export const metadata: Metadata = { title: "관리자 대시보드" };
 
@@ -73,6 +106,15 @@ export default async function AdminDashboard() {
     attendance = [];
   }
   const attendUnique = new Set(attendance.map((a) => a.userId)).size;
+
+  // 토크콘서트 예약 (우리 학교)
+  let talkResRows: ResRow[] = [];
+  try {
+    talkResRows = await buildResRows(await listSlotReservationsBySchool(session.schoolId), false);
+  } catch {
+    talkResRows = [];
+  }
+
   const answerRate =
     stats.totalQuestions > 0
       ? Math.round((stats.answeredQuestions / stats.totalQuestions) * 100)
@@ -256,6 +298,9 @@ export default async function AdminDashboard() {
         </div>
       </section>
 
+      {/* 토크콘서트 예약 현황 (우리 학교) */}
+      <TalkReservations rows={talkResRows} />
+
       {/* 학교 질문 전체 (이름·학번 + 검색) */}
       <SchoolQuestions questions={questionRows} />
     </div>
@@ -281,6 +326,14 @@ async function SuperAdminDashboard() {
     attendance = [];
   }
   const attendUnique = new Set(attendance.map((a) => a.userId)).size;
+
+  // 토크콘서트 예약 (전 학교, 학교별)
+  let talkResRows: ResRow[] = [];
+  try {
+    talkResRows = await buildResRows(await listAllSlotReservations(), true);
+  } catch {
+    talkResRows = [];
+  }
 
   // 멘토 질문·답변 현황
   const mentorQ = await mentorQnaStats();
@@ -367,6 +420,9 @@ async function SuperAdminDashboard() {
 
       {/* 멘토 질문·답변 현황 (검색) */}
       <MentorQna rows={mentorRows} />
+
+      {/* 토크콘서트 예약 현황 (학교별) */}
+      <TalkReservations rows={talkResRows} showSchool />
 
       {/* 화상 교육장 출석 로그 (전체) */}
       <section className="mt-8 card overflow-hidden">

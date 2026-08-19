@@ -457,6 +457,16 @@ export async function listAllSlotReservations(): Promise<TalkReservation[]> {
   );
 }
 
+/** 특정 학교의 예약 (학교 관리자용) */
+export async function listSlotReservationsBySchool(
+  schoolId: string
+): Promise<TalkReservation[]> {
+  const rows = await all<TalkReservation>("talkReservations");
+  return rows
+    .filter((r) => r.schoolId === schoolId)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+}
+
 /** 예약 생성. 규칙: 시간대(19/20/21시) 유효 · 하루 최대 3개 · 같은 시간대 중복 X · 같은 멘토링 중복 X */
 export async function createSlotReservation(
   userId: string,
