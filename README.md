@@ -145,7 +145,7 @@ KAKAO_TPL_NEW_ANSWER=...    # 승인된 템플릿 코드(학생용)
    SUPABASE_SERVICE_ROLE_KEY=eyJ...        # Project Settings → API → service_role
    SEED_SECRET=아무_긴_임의문자열           # 시드 엔드포인트 보호용
    ```
-4. 시드 채우기(1회): `https://mentoring-usg.kr/api/seed?secret=<SEED_SECRET>` 접속
+4. 시드 채우기(1회): `https://mting.kr/api/seed?secret=<SEED_SECRET>` 접속
    → 학교 12개, 멘토 566명, 토크콘서트 45회 등 자동 삽입 (이미 있으면 skip, `&force=1` 로 강제)
 
 > ⚠️ Vercel 서버리스는 파일시스템이 휘발성이라 JSON 스토어로는 데이터가 유지되지 않습니다.
@@ -160,20 +160,36 @@ KAKAO_TPL_NEW_ANSWER=...    # 승인된 템플릿 코드(학생용)
 
 ---
 
-## 배포 (Vercel · 데모용)
+## 배포 (Vercel) · 도메인 연결 (mting.kr)
 
 코드가 GitHub에 있으므로 Vercel에서 바로 배포할 수 있습니다.
 
 1. https://vercel.com 에서 **GitHub로 로그인**
 2. **Add New → Project** → `yesjob2025-cyber/mentoring-usg` **Import**
-3. Branch를 `claude/mentoring-homepage-setup-udana7` 로 선택 (또는 이 브랜치를 main으로 머지)
-4. **Environment Variables** 에 최소 `SESSION_SECRET`(임의 32자 이상) 입력
-   (카톡 실발송하려면 `KAKAO_PROVIDER=aligo` + 알리고 키들도 함께)
-5. **Deploy** → 몇 분 뒤 `https://<프로젝트>.vercel.app` 주소 생성
+3. **Production Branch** 를 운영에 쓸 브랜치로 지정 (Settings → Git)
+4. **Environment Variables**
+   ```
+   SESSION_SECRET=임의_32자_이상_문자열     # 필수
+   NEXT_PUBLIC_SITE_URL=https://mting.kr   # 문자·알림톡 링크, OG 태그 기준 URL
+   ```
+   (문자 실발송하려면 `KAKAO_PROVIDER` + 솔라피/알리고 키, 데이터 유지하려면 위 Supabase 키)
+5. **Deploy** → `https://<프로젝트>.vercel.app` 생성
 
-> ⚠️ **데이터 영속성 주의**: 서버리스에서는 임시 저장소(`/tmp`)를 쓰므로 배포·재시작 시
-> 가입/질문 데이터가 초기화됩니다(시드 데이터로 리셋). 화면·플로우 확인용 데모로는 충분하지만,
-> 실제 운영(데이터 유지, 다중 사용자)은 위 **Supabase 전환**이 필요합니다.
+**도메인(mting.kr) 연결**
+
+1. Vercel → 프로젝트 → **Settings → Domains** → `mting.kr` 추가 (`www.mting.kr` 도 함께 추가하면 자동 리디렉션)
+2. Vercel이 표시하는 DNS 레코드를 도메인 등록기관(가비아 등) DNS 설정에 그대로 입력
+   (루트 도메인은 A 레코드, `www` 는 CNAME — **값은 반드시 Vercel 화면에 뜬 것을 사용**)
+3. 전파 후 인증서 자동 발급 → `https://mting.kr` 접속 확인
+4. `NEXT_PUBLIC_SITE_URL` 이 `https://mting.kr` 인지 확인하고 재배포
+
+> ⚠️ 이미 다른 사이트가 mting.kr 을 쓰고 있다면, DNS를 옮기는 순간 기존 사이트는 내려갑니다.
+> 특히 토크콘서트 섭외 문자로 이미 발송된 `https://mting.kr/invite/<토큰>` 링크는
+> 이 프로젝트에 `/invite/[token]` 페이지가 없으므로 404가 됩니다. (`src/app/api/talk-invite/route.ts`)
+
+> ⚠️ **데이터 영속성**: Supabase 미설정 시 서버리스 임시 저장소를 쓰므로 배포·재시작마다
+> 가입/질문 데이터가 초기화됩니다. 실제 운영은 위 **Supabase 전환**이 필요합니다.
+> (`/strength` 일 강점 진단은 브라우저 저장이라 이 영향을 받지 않습니다.)
 
 ## 기술 스택
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind CSS · jose(세션) ·

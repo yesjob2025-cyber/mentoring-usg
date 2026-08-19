@@ -4,7 +4,10 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { getSession } from "@/lib/session";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://mting.kr";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "부울경 연합 현직자 멘토링 | 실시간 Q&A · 온라인 토크콘서트",
     template: "%s | 부울경 연합 현직자 멘토링",
