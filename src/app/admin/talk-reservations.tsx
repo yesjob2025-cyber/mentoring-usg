@@ -45,6 +45,32 @@ export function TalkReservations({ rows, showSchool }: { rows: ResRow[]; showSch
 
   const studentCount = useMemo(() => new Set(filtered.map((r) => r.userId)).size, [filtered]);
 
+  function exportCsv() {
+    const cols = [
+      ...(showSchool ? ["학교"] : []),
+      "이름", "학번", "날짜", "요일", "시간", "계열", "분야", "기업",
+    ];
+    const esc = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = filtered.map((r) =>
+      [
+        ...(showSchool ? [r.school] : []),
+        r.name, r.studentNo, r.date, r.weekday, slotLabel(r.time), r.track, r.topic, r.company,
+      ]
+        .map(esc)
+        .join(",")
+    );
+    const csv = "﻿" + [cols.map(esc).join(","), ...lines].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `토크콘서트_예약현황${date !== "all" ? `_${date}` : ""}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   // 학교별 요약 (전체 관리자용)
   const bySchool = useMemo(() => {
     const m = new Map<string, { count: number; students: Set<string> }>();
@@ -86,6 +112,13 @@ export function TalkReservations({ rows, showSchool }: { rows: ResRow[]; showSch
             placeholder={showSchool ? "이름·학번·학교·분야 검색" : "이름·학번·분야 검색"}
             className="w-56 rounded-lg border border-ink-line bg-white px-3 py-2 text-sm"
           />
+          <button
+            onClick={exportCsv}
+            disabled={filtered.length === 0}
+            className="btn-outline px-3 py-2 text-sm disabled:opacity-50"
+          >
+            ⬇ CSV 내보내기
+          </button>
         </div>
       </div>
 
