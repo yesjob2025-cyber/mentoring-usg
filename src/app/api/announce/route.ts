@@ -43,10 +43,16 @@ export async function GET(req: Request) {
     targetSchoolId = hit.id;
   }
 
+  // 명백한 테스트/더미 번호 제외 (모르는 사람에게 발송 방지)
+  const BLOCK = new Set([
+    "01012345678", "01000000000", "01011112222", "01022223333",
+    "01011111111", "01099999999", "01012341234",
+  ]);
   const students = users.filter(
     (u) =>
       (u.role ?? "student") === "student" &&
       (u.phone || "").replace(/[^0-9]/g, "").length >= 10 &&
+      !BLOCK.has((u.phone || "").replace(/[^0-9]/g, "")) &&
       (!targetSchoolId || u.schoolId === targetSchoolId)
   );
 
