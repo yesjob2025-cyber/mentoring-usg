@@ -36,6 +36,20 @@ function remindMessage(name: string, date: string, slots: string): string {
   );
 }
 
+// 시작 임박 안내: 오늘 7시 시작, 10분 전 입장 요청
+function startMessage(name: string, date: string, slots: string): string {
+  return (
+    `[부울경 멘토링] 오늘 토크콘서트 시작 안내\n\n` +
+    `${name}님, 오늘 저녁 7시 토크콘서트가 시작됩니다. 원활한 진행을 위해 ` +
+    `시작 10분 전(18:50)까지 입장해 주세요.\n` +
+    (slots ? `예약하신 프로그램: ${slots}\n\n` : `\n`) +
+    `홈페이지에서 바로 Zoom으로 접속할 수 있습니다.\n` +
+    `· 접속: ${SITE}/talk-concert/zoom/${date}\n` +
+    `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+    `문의: 010-8553-6027`
+  );
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const secret = url.searchParams.get("secret");
@@ -44,6 +58,8 @@ export async function GET(req: Request) {
   }
   const date = (url.searchParams.get("date") || "2026-08-24").trim();
   const doSend = url.searchParams.get("send") === "1";
+  const variant = (url.searchParams.get("variant") || "").trim();
+  const buildMsg = variant === "start" ? startMessage : remindMessage;
 
   const [reservations, users] = await Promise.all([
     all<TalkReservation>("talkReservations"),
@@ -89,7 +105,7 @@ export async function GET(req: Request) {
       targets: targets.length,
       staleExcluded,
       skipped,
-      sampleMessage: remindMessage("홍길동", date, "19:00~20:00 인공지능"),
+      sampleMessage: buildMsg("홍길동", date, "19:00~20:00 인공지능"),
       preview: targets.slice(0, 30).map((t) => ({ name: t.name, phone: t.phone, slots: t.slots })),
     });
   }
@@ -97,7 +113,7 @@ export async function GET(req: Request) {
   let sent = 0;
   const failures: { name: string; detail?: string }[] = [];
   for (const t of targets) {
-    const res = await sendInviteLms(t.phone, "[부울경 멘토링] 오늘 토크콘서트 안내", remindMessage(t.name, date, t.slots));
+    const res = await sendInviteLms(t.phone, "[부울경 멘토링] 오늘 토크콘서트 안내", buildMsg(t.name, date, t.slots));
     if (res.ok) sent += 1;
     else failures.push({ name: t.name, detail: res.detail });
   }
