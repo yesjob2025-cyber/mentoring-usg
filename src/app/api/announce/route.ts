@@ -22,6 +22,18 @@ function announceMessage(name: string): string {
   );
 }
 
+// 2차 안내: 9/3까지 계속 진행 → 지속 참여 독려
+function continueMessage(name: string): string {
+  return (
+    `[부울경 연합 현직자 멘토링] 토크콘서트 계속 진행 안내\n\n` +
+    `${name}님, 온라인 토크콘서트가 9/3(목)까지 매일 저녁 7시 계속됩니다.\n` +
+    `매일 새로운 분야의 현직자 멘토가 진행하니, 관심 분야를 예약하고 끝까지 함께해요.\n\n` +
+    `· 일정·예약·접속: ${SITE}/talk-concert\n` +
+    `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+    `문의: 010-8553-6027`
+  );
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const secret = url.searchParams.get("secret");
@@ -30,6 +42,8 @@ export async function GET(req: Request) {
   }
   const doSend = url.searchParams.get("send") === "1";
   const schoolFilter = (url.searchParams.get("school") || "").trim();
+  const variant = (url.searchParams.get("variant") || "").trim();
+  const buildMsg = variant === "continue" ? continueMessage : announceMessage;
 
   const [users, schools] = await Promise.all([all<User>("users"), listSchools()]);
   const schoolById = new Map<string, School>(schools.map((s) => [s.id, s]));
@@ -73,7 +87,7 @@ export async function GET(req: Request) {
       targets: students.length,
       bySchool,
       noPhoneSkipped: noPhone,
-      sampleMessage: announceMessage("홍길동"),
+      sampleMessage: buildMsg("홍길동"),
       preview: students.slice(0, 20).map((u) => ({
         name: u.name,
         school: schoolById.get(u.schoolId)?.name ?? u.schoolId,
@@ -85,7 +99,7 @@ export async function GET(req: Request) {
   let sent = 0;
   const failures: { name: string; detail?: string }[] = [];
   for (const u of students) {
-    const res = await sendInviteLms(u.phone!, "[부울경 멘토링] 토크콘서트 안내", announceMessage(u.name));
+    const res = await sendInviteLms(u.phone!, "[부울경 멘토링] 토크콘서트 안내", buildMsg(u.name));
     if (res.ok) sent += 1;
     else failures.push({ name: u.name, detail: res.detail });
   }
