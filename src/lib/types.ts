@@ -27,7 +27,8 @@ export interface Mentor {
   name: string;
   company: string; // 소속 기업 표기
   title: string; // 직책/직무
-  years: number; // 경력 연차
+  years: number; // 경력 연차 (startYear 있으면 자동 계산으로 대체)
+  startYear?: number; // 최초 입사연도 — 있으면 매년 연차 자동 증가
   education: string; // 학력
   summary: string; // 한 줄 소개
   career: string[]; // 주요 경력사항

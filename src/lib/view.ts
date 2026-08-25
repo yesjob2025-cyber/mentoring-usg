@@ -25,13 +25,23 @@ export interface PublicMentor {
   };
 }
 
+// 최초 입사연도(startYear)가 있으면 매년 자동 증가하는 연차를 계산.
+// 예) 2019년 입사 → 2026년엔 8년차. 없으면 기존 years 사용.
+export function effectiveYears(m: { years: number; startYear?: number }): number {
+  const thisYear = new Date().getFullYear();
+  if (m.startYear && m.startYear >= 1970 && m.startYear <= thisYear) {
+    return Math.max(1, thisYear - m.startYear + 1);
+  }
+  return m.years;
+}
+
 export function toPublicMentor(m: Mentor): PublicMentor {
   return {
     id: m.id,
     name: maskName(m.name),
     company: m.company,
     title: m.title,
-    years: m.years,
+    years: effectiveYears(m),
     education: m.education,
     summary: m.summary,
     career: m.career,
