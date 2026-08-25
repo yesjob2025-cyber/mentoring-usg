@@ -457,6 +457,16 @@ export async function listAllSlotReservations(): Promise<TalkReservation[]> {
   );
 }
 
+/** 등록 학생 명단 (전체 또는 특정 학교) */
+export async function listStudents(schoolId?: string): Promise<User[]> {
+  const users = await all<User>("users");
+  return users
+    .filter(
+      (u) => (u.role ?? "student") === "student" && (!schoolId || u.schoolId === schoolId)
+    )
+    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+}
+
 /** 특정 학교의 예약 (학교 관리자용) */
 export async function listSlotReservationsBySchool(
   schoolId: string

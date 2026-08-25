@@ -13,6 +13,7 @@ import {
   listSlotReservationsBySchool,
   listAllSlotReservations,
   listSchools,
+  listStudents,
 } from "@/lib/repo";
 import { themeMeta } from "@/lib/taxonomy";
 import { formatKST, formatKSTDate } from "@/lib/format";
@@ -22,6 +23,26 @@ import type { ThemeKind, TalkAttendance, TalkReservation } from "@/lib/types";
 import { SchoolQuestions, type SchoolQuestionRow } from "./school-questions";
 import { MentorQna, type MentorQnaRow } from "./mentor-qna";
 import { TalkReservations, type ResRow } from "./talk-reservations";
+import { StudentRoster, type StudentRow } from "./student-roster";
+import type { User } from "@/lib/types";
+
+async function buildStudentRows(students: User[], withSchool: boolean): Promise<StudentRow[]> {
+  const schoolName = new Map<string, string>();
+  if (withSchool) for (const s of await listSchools()) schoolName.set(s.id, s.name);
+  return students.map((u) => ({
+    id: u.id,
+    name: u.name,
+    studentNo: u.studentNo ?? "",
+    school: withSchool ? schoolName.get(u.schoolId) ?? u.schoolId : "",
+    department: u.department ?? "",
+    grade: u.grade ?? "",
+    gender: u.gender ?? "",
+    phone: u.phone ?? "",
+    email: u.email,
+    joinedAt: formatKSTDate(u.createdAt),
+    questionCount: u.questionCount ?? 0,
+  }));
+}
 
 // (date|topic) → 기업명 (예약에 저장 안 된 회사명을 일정표에서 보강)
 const COMPANY_BY_SLOT = new Map<string, string>(
@@ -114,6 +135,9 @@ export default async function AdminDashboard() {
   } catch {
     talkResRows = [];
   }
+
+  // 등록 학생 명단 (우리 학교)
+  const studentRows = await buildStudentRows(await listStudents(session.schoolId), false);
 
   const answerRate =
     stats.totalQuestions > 0
@@ -301,6 +325,9 @@ export default async function AdminDashboard() {
       {/* 토크콘서트 예약 현황 (우리 학교) */}
       <TalkReservations rows={talkResRows} />
 
+      {/* 등록 학생 명단 (우리 학교) */}
+      <StudentRoster rows={studentRows} />
+
       {/* 학교 질문 전체 (이름·학번 + 검색) */}
       <SchoolQuestions questions={questionRows} />
     </div>
@@ -334,6 +361,9 @@ async function SuperAdminDashboard() {
   } catch {
     talkResRows = [];
   }
+
+  // 등록 학생 명단 (전 학교)
+  const studentRows = await buildStudentRows(await listStudents(), true);
 
   // 멘토 질문·답변 현황
   const mentorQ = await mentorQnaStats();
@@ -423,6 +453,9 @@ async function SuperAdminDashboard() {
 
       {/* 토크콘서트 예약 현황 (학교별) */}
       <TalkReservations rows={talkResRows} showSchool />
+
+      {/* 등록 학생 명단 (전 학교) */}
+      <StudentRoster rows={studentRows} showSchool />
 
       {/* 화상 교육장 출석 로그 (전체) */}
       <section className="mt-8 card overflow-hidden">
