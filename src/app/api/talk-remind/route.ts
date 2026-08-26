@@ -19,17 +19,24 @@ const BLOCK = new Set([
   "01011111111", "01099999999", "01012341234",
 ]);
 
+// (날짜|분야) → 변경 공지. 그 슬롯을 예약한 학생에게만 추가로 안내.
+const CHANGE_NOTICES: Record<string, string> = {
+  "2026-08-26|식품영양":
+    "※ [변경 안내] '식품영양' 진행 기업이 담당자 사정으로 CJ프레시웨이 → 아라마크(동일 직무)로 변경되었습니다.",
+};
+
 function md(date: string): string {
   const [, m, d] = date.split("-");
   return `${Number(m)}/${Number(d)}(${weekday(date)})`;
 }
 
-function remindMessage(name: string, date: string, slots: string): string {
+function remindMessage(name: string, date: string, slots: string, notice: string): string {
   return (
     `[부울경 멘토링] 오늘 토크콘서트 안내\n\n` +
     `${name}님, 오늘 ${md(date)} 저녁 7시 온라인 토크콘서트가 진행됩니다.\n` +
-    (slots ? `예약하신 프로그램: ${slots}\n\n` : `\n`) +
-    `예약 시간에 아래에서 Zoom으로 바로 접속하세요.\n` +
+    (slots ? `예약하신 프로그램: ${slots}\n` : ``) +
+    (notice ? `\n${notice}\n` : ``) +
+    `\n예약 시간에 아래에서 Zoom으로 바로 접속하세요.\n` +
     `· 접속: ${SITE}/talk-concert/zoom/${date}\n` +
     `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
     `문의: 010-8553-6027`
@@ -37,13 +44,14 @@ function remindMessage(name: string, date: string, slots: string): string {
 }
 
 // 시작 임박 안내: 오늘 7시 시작, 10분 전 입장 요청
-function startMessage(name: string, date: string, slots: string): string {
+function startMessage(name: string, date: string, slots: string, notice: string): string {
   return (
     `[부울경 멘토링] 오늘 토크콘서트 시작 안내\n\n` +
     `${name}님, 오늘 저녁 7시 토크콘서트가 시작됩니다. 원활한 진행을 위해 ` +
     `시작 10분 전(18:50)까지 입장해 주세요.\n` +
-    (slots ? `예약하신 프로그램: ${slots}\n\n` : `\n`) +
-    `홈페이지에서 바로 Zoom으로 접속할 수 있습니다.\n` +
+    (slots ? `예약하신 프로그램: ${slots}\n` : ``) +
+    (notice ? `\n${notice}\n` : ``) +
+    `\n홈페이지에서 바로 Zoom으로 접속할 수 있습니다.\n` +
     `· 접속: ${SITE}/talk-concert/zoom/${date}\n` +
     `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
     `문의: 010-8553-6027`
@@ -84,18 +92,19 @@ export async function GET(req: Request) {
     byUser.set(r.userId, arr);
   }
 
-  const targets: { userId: string; name: string; phone: string; slots: string }[] = [];
+  const targets: { userId: string; name: string; phone: string; slots: string; notice: string }[] = [];
   const skipped = { noPhone: 0, testNumber: 0 };
+  let noticedCount = 0;
   for (const [userId, resv] of byUser) {
     const phone = phoneByUser.get(userId) || (resv[0] && ""); // 예약엔 번호 없음 → users 에서
     const digits = (phone || "").replace(/[^0-9]/g, "");
     if (digits.length < 10) { skipped.noPhone += 1; continue; }
     if (BLOCK.has(digits)) { skipped.testNumber += 1; continue; }
-    const slots = resv
-      .sort((a, b) => a.time.localeCompare(b.time))
-      .map((x) => `${slotLabel(x.time)} ${x.topic}`)
-      .join(", ");
-    targets.push({ userId, name: nameByUser.get(userId) || "학생", phone: phone!, slots });
+    const sorted = resv.sort((a, b) => a.time.localeCompare(b.time));
+    const slots = sorted.map((x) => `${slotLabel(x.time)} ${x.topic}`).join(", ");
+    const notice = [...new Set(sorted.map((x) => CHANGE_NOTICES[`${date}|${x.topic}`]).filter(Boolean))].join("\n");
+    if (notice) noticedCount += 1;
+    targets.push({ userId, name: nameByUser.get(userId) || "학생", phone: phone!, slots, notice });
   }
 
   if (!doSend) {
@@ -104,8 +113,9 @@ export async function GET(req: Request) {
       date,
       targets: targets.length,
       staleExcluded,
+      changeNoticeRecipients: noticedCount,
       skipped,
-      sampleMessage: buildMsg("홍길동", date, "19:00~20:00 인공지능"),
+      sampleMessage: buildMsg("홍길동", date, "19:00~20:00 인공지능", CHANGE_NOTICES[`${date}|식품영양`] ?? ""),
       preview: targets.slice(0, 30).map((t) => ({ name: t.name, phone: t.phone, slots: t.slots })),
     });
   }
@@ -113,7 +123,7 @@ export async function GET(req: Request) {
   let sent = 0;
   const failures: { name: string; detail?: string }[] = [];
   for (const t of targets) {
-    const res = await sendInviteLms(t.phone, "[부울경 멘토링] 오늘 토크콘서트 안내", buildMsg(t.name, date, t.slots));
+    const res = await sendInviteLms(t.phone, "[부울경 멘토링] 오늘 토크콘서트 안내", buildMsg(t.name, date, t.slots, t.notice));
     if (res.ok) sent += 1;
     else failures.push({ name: t.name, detail: res.detail });
   }
