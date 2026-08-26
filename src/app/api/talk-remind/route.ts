@@ -58,6 +58,20 @@ function startMessage(name: string, date: string, slots: string, notice: string)
   );
 }
 
+// 진행 중 독려: 지금 바로 참여 요청
+function nowMessage(name: string, date: string, slots: string, notice: string): string {
+  return (
+    `[부울경 멘토링] 토크콘서트 진행 중 안내\n\n` +
+    `${name}님, 오늘 토크콘서트가 진행 중입니다. 아직 참여 전이시라면 ` +
+    `지금 바로 홈페이지에서 접속해 주세요!\n` +
+    (slots ? `예약하신 프로그램: ${slots}\n` : ``) +
+    (notice ? `\n${notice}\n` : ``) +
+    `\n· 바로 접속: ${SITE}/talk-concert/zoom/${date}\n` +
+    `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+    `문의: 010-8553-6027`
+  );
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const secret = url.searchParams.get("secret");
@@ -67,7 +81,7 @@ export async function GET(req: Request) {
   const date = (url.searchParams.get("date") || "2026-08-24").trim();
   const doSend = url.searchParams.get("send") === "1";
   const variant = (url.searchParams.get("variant") || "").trim();
-  const buildMsg = variant === "start" ? startMessage : remindMessage;
+  const buildMsg = variant === "now" ? nowMessage : variant === "start" ? startMessage : remindMessage;
 
   const [reservations, users] = await Promise.all([
     all<TalkReservation>("talkReservations"),
