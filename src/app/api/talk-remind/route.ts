@@ -58,6 +58,23 @@ function startMessage(name: string, date: string, slots: string, notice: string)
   );
 }
 
+// 시작 임박 + 다른 멘토링 참여 독려
+function startMoreMessage(name: string, date: string, slots: string, notice: string): string {
+  return (
+    `[부울경 멘토링] 오늘 토크콘서트 시작 안내\n\n` +
+    `${name}님, 오늘 저녁 7시 토크콘서트가 시작됩니다. 시작 10분 전(18:50)까지 입실 완료해 주세요.\n` +
+    (slots ? `예약하신 프로그램: ${slots}\n` : ``) +
+    (notice ? `\n${notice}\n` : ``) +
+    `\n홈페이지에서 바로 Zoom으로 접속할 수 있습니다.\n` +
+    `· 접속: ${SITE}/talk-concert/zoom/${date}\n` +
+    `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+    `이 외에도 9/3(목)까지 매일 다양한 분야의 현직자 멘토링이 준비되어 있습니다. ` +
+    `관심 분야를 예약하고 많이 참여해 주세요!\n` +
+    `· 전체 일정·예약: ${SITE}/talk-concert\n\n` +
+    `문의: 010-8553-6027`
+  );
+}
+
 // 진행 중 독려: 지금 바로 참여 요청
 function nowMessage(name: string, date: string, slots: string, notice: string): string {
   return (
@@ -81,7 +98,11 @@ export async function GET(req: Request) {
   const date = (url.searchParams.get("date") || "2026-08-24").trim();
   const doSend = url.searchParams.get("send") === "1";
   const variant = (url.searchParams.get("variant") || "").trim();
-  const buildMsg = variant === "now" ? nowMessage : variant === "start" ? startMessage : remindMessage;
+  const buildMsg =
+    variant === "startmore" ? startMoreMessage
+    : variant === "now" ? nowMessage
+    : variant === "start" ? startMessage
+    : remindMessage;
 
   const [reservations, users] = await Promise.all([
     all<TalkReservation>("talkReservations"),
