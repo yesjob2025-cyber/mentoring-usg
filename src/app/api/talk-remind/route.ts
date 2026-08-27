@@ -58,6 +58,16 @@ function startMessage(name: string, date: string, slots: string, notice: string)
   );
 }
 
+// 시작 오류 사과 안내 (고정 문구)
+function apologyMessage(): string {
+  return (
+    `안녕하세요. 부울경 연합 토크콘서트 운영사무국입니다.\n\n` +
+    `오늘 멘토링 시작할 때 사무실에 갑작스런 인터넷 및 전기 문제로 원활하게 진행되지 못한 점 죄송합니다. ` +
+    `앞으로는 이런 일이 없도록 사전에 잘 준비해서 시작하겠습니다.\n\n` +
+    `다시 한번 사과드리며, 현직자 분들과 함께 현장 이해와 취업준비에 도움 받으시기 바랍니다.`
+  );
+}
+
 // 시작 임박 + 다른 멘토링 참여 독려
 function startMoreMessage(name: string, date: string, slots: string, notice: string): string {
   return (
@@ -99,10 +109,12 @@ export async function GET(req: Request) {
   const doSend = url.searchParams.get("send") === "1";
   const variant = (url.searchParams.get("variant") || "").trim();
   const buildMsg =
-    variant === "startmore" ? startMoreMessage
+    variant === "apology" ? () => apologyMessage()
+    : variant === "startmore" ? startMoreMessage
     : variant === "now" ? nowMessage
     : variant === "start" ? startMessage
     : remindMessage;
+  const subject = variant === "apology" ? "[부울경 토크콘서트] 사과 말씀" : "[부울경 멘토링] 오늘 토크콘서트 안내";
 
   const [reservations, users] = await Promise.all([
     all<TalkReservation>("talkReservations"),
@@ -158,7 +170,7 @@ export async function GET(req: Request) {
   let sent = 0;
   const failures: { name: string; detail?: string }[] = [];
   for (const t of targets) {
-    const res = await sendInviteLms(t.phone, "[부울경 멘토링] 오늘 토크콘서트 안내", buildMsg(t.name, date, t.slots, t.notice));
+    const res = await sendInviteLms(t.phone, subject, buildMsg(t.name, date, t.slots, t.notice));
     if (res.ok) sent += 1;
     else failures.push({ name: t.name, detail: res.detail });
   }
