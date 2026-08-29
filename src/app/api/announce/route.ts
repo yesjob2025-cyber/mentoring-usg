@@ -34,6 +34,18 @@ function continueMessage(name: string): string {
   );
 }
 
+// 다음 주(8/31~9/3) 안내 + 남은 기간 미리 신청 독려
+function nextWeekMessage(name: string): string {
+  return (
+    `[부울경 연합 현직자 멘토링] 다음 주 토크콘서트 안내\n\n` +
+    `${name}님, 온라인 토크콘서트가 다음 주 8/31(월)~9/3(목)에도 매일 저녁 7시 계속됩니다.\n` +
+    `매일 새로운 분야의 현직자 멘토가 진행하니, 남은 기간 관심 분야를 미리 예약하고 참여해 주세요!\n\n` +
+    `· 일정·예약·접속: ${SITE}/talk-concert\n` +
+    `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+    `문의: 010-8553-6027`
+  );
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const secret = url.searchParams.get("secret");
@@ -43,7 +55,10 @@ export async function GET(req: Request) {
   const doSend = url.searchParams.get("send") === "1";
   const schoolFilter = (url.searchParams.get("school") || "").trim();
   const variant = (url.searchParams.get("variant") || "").trim();
-  const buildMsg = variant === "continue" ? continueMessage : announceMessage;
+  const buildMsg =
+    variant === "nextweek" ? nextWeekMessage
+    : variant === "continue" ? continueMessage
+    : announceMessage;
 
   const [users, schools] = await Promise.all([all<User>("users"), listSchools()]);
   const schoolById = new Map<string, School>(schools.map((s) => [s.id, s]));
