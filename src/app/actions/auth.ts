@@ -7,11 +7,35 @@ import {
   authenticateStudent,
   verifyAdmin,
   touchActivity,
+  resetPasswordByEmail,
 } from "@/lib/repo";
 import { createSession, destroySession } from "@/lib/session";
 import { isSuperAdmin } from "@/lib/superadmin";
+import { sendInviteLms } from "@/lib/messaging";
 
 export type FormState = { error?: string; ok?: boolean };
+export type ResetState = { error?: string; ok?: boolean; message?: string };
+
+const SITE = "https://mentoring-usg.kr";
+
+// 학생 비밀번호 재설정 — 이메일 입력 → 등록된 번호로 임시 비밀번호 문자 발송
+export async function resetPasswordAction(_prev: ResetState, formData: FormData): Promise<ResetState> {
+  const email = String(formData.get("email") || "").trim();
+  if (!email) return { error: "가입한 이메일을 입력해 주세요." };
+  const r = await resetPasswordByEmail(email);
+  if (!r.ok) return { error: r.error };
+  const digits = (r.phone || "").replace(/[^0-9]/g, "");
+  if (digits.length < 10) {
+    return { error: "등록된 연락처가 없어 문자를 보낼 수 없습니다. 운영사무국(010-8553-6027)으로 문의해 주세요." };
+  }
+  const msg =
+    `[부울경 멘토링] 비밀번호 재설정\n\n` +
+    `${r.name}님, 임시 비밀번호는 [ ${r.tempPassword} ] 입니다.\n` +
+    `이 비밀번호로 로그인 후 이용해 주세요.\n· 로그인: ${SITE}/login`;
+  await sendInviteLms(r.phone!, "[부울경 멘토링] 비밀번호 재설정", msg);
+  const masked = digits.length >= 10 ? `${digits.slice(0, 3)}-****-${digits.slice(-4)}` : "등록된 번호";
+  return { ok: true, message: `등록된 번호(${masked})로 임시 비밀번호를 문자로 보냈습니다. 확인 후 로그인해 주세요.` };
+}
 
 export async function signupAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const code = String(formData.get("code") || "");

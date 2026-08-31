@@ -49,6 +49,17 @@ export async function getUserByEmail(email: string): Promise<User | undefined> {
 export async function getUserById(id: string): Promise<User | undefined> {
   return one<User>("users", "id", id);
 }
+
+/** 이메일로 학생 비밀번호를 임시 비밀번호로 재설정. 성공 시 임시 비번·이름·번호 반환 */
+export async function resetPasswordByEmail(
+  email: string
+): Promise<{ ok: boolean; tempPassword?: string; name?: string; phone?: string; error?: string }> {
+  const u = await getUserByEmail(email);
+  if (!u || u.role !== "student") return { ok: false, error: "가입된 이메일을 찾을 수 없습니다." };
+  const temp = String(Math.floor(100000 + Math.random() * 900000)); // 6자리 임시 비번
+  await patch("users", "id", u.id, { passwordHash: hashPassword(temp) });
+  return { ok: true, tempPassword: temp, name: u.name, phone: u.phone };
+}
 export async function listUsersBySchool(schoolId: string): Promise<User[]> {
   const rows = await all<User>("users");
   return rows.filter((u) => u.schoolId === schoolId && u.role === "student");
