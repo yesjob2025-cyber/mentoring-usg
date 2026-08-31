@@ -50,6 +50,19 @@ export async function getUserById(id: string): Promise<User | undefined> {
   return one<User>("users", "id", id);
 }
 
+/** 로그인한 학생이 현재 비밀번호 확인 후 새 비밀번호로 변경 */
+export async function changeUserPassword(
+  userId: string,
+  current: string,
+  next: string
+): Promise<{ ok: boolean; error?: string }> {
+  const u = await getUserById(userId);
+  if (!u) return { ok: false, error: "사용자를 찾을 수 없습니다." };
+  if (!verifyPassword(current, u.passwordHash)) return { ok: false, error: "현재 비밀번호가 올바르지 않습니다." };
+  await patch("users", "id", userId, { passwordHash: hashPassword(next) });
+  return { ok: true };
+}
+
 /** 이메일로 학생 비밀번호를 임시 비밀번호로 재설정. 성공 시 임시 비번·이름·번호 반환 */
 export async function resetPasswordByEmail(
   email: string

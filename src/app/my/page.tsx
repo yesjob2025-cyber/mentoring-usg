@@ -25,9 +25,10 @@ export default async function MyPage() {
             {user?.name}님이 등록한 질문 {questions.length}건
           </p>
         </div>
-        <Link href="/qna" className="btn-brand">
-          새 질문
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/my/password" className="btn-outline">비밀번호 변경</Link>
+          <Link href="/qna" className="btn-brand">새 질문</Link>
+        </div>
       </div>
 
       <ul className="mt-8 space-y-3">

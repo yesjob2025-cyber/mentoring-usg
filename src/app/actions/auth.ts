@@ -8,8 +8,9 @@ import {
   verifyAdmin,
   touchActivity,
   resetPasswordByEmail,
+  changeUserPassword,
 } from "@/lib/repo";
-import { createSession, destroySession } from "@/lib/session";
+import { createSession, destroySession, getSession } from "@/lib/session";
 import { isSuperAdmin } from "@/lib/superadmin";
 import { sendInviteLms } from "@/lib/messaging";
 
@@ -35,6 +36,21 @@ export async function resetPasswordAction(_prev: ResetState, formData: FormData)
   await sendInviteLms(r.phone!, "[부울경 멘토링] 비밀번호 재설정", msg);
   const masked = digits.length >= 10 ? `${digits.slice(0, 3)}-****-${digits.slice(-4)}` : "등록된 번호";
   return { ok: true, message: `등록된 번호(${masked})로 임시 비밀번호를 문자로 보냈습니다. 확인 후 로그인해 주세요.` };
+}
+
+// 로그인한 학생이 비밀번호 변경 (임시 비번 → 새 비번)
+export async function changePasswordAction(_prev: ResetState, formData: FormData): Promise<ResetState> {
+  const session = await getSession();
+  if (!session || session.role !== "student" || !session.uid) return { error: "로그인이 필요합니다." };
+  const current = String(formData.get("current") || "");
+  const next = String(formData.get("next") || "");
+  const confirm = String(formData.get("confirm") || "");
+  if (!current) return { error: "현재(임시) 비밀번호를 입력해 주세요." };
+  if (next.length < 6) return { error: "새 비밀번호는 6자 이상으로 설정해 주세요." };
+  if (next !== confirm) return { error: "새 비밀번호가 서로 일치하지 않습니다." };
+  const r = await changeUserPassword(session.uid, current, next);
+  if (!r.ok) return { error: r.error };
+  return { ok: true, message: "비밀번호가 변경되었습니다. 다음 로그인부터 새 비밀번호를 사용하세요." };
 }
 
 export async function signupAction(_prev: FormState, formData: FormData): Promise<FormState> {
