@@ -116,6 +116,18 @@ export async function GET(req: Request) {
   const onlyTopic = (url.searchParams.get("topic") || "").trim();
   const onlyTime = (url.searchParams.get("time") || "").trim();
   const newTime = (url.searchParams.get("newtime") || "20:00").trim();
+  const byTime = (url.searchParams.get("by") || "18:45").trim();
+
+  // 일찍 접속 안내
+  const earlyMessage = (name: string, d: string, slots: string, notice: string): string =>
+    `[부울경 멘토링] 오늘 토크콘서트 안내\n\n` +
+    `${name}님, 오늘 ${md(d)} 저녁 7시 토크콘서트가 진행됩니다. ` +
+    `원활한 진행을 위해 ${byTime}까지 미리 접속해 주세요.\n` +
+    (slots ? `예약하신 프로그램: ${slots}\n` : ``) +
+    (notice ? `\n${notice}\n` : ``) +
+    `\n· 접속: ${SITE}/talk-concert/zoom/${d}\n` +
+    `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+    `문의: 010-8553-6027`;
 
   // 시간 변경(지연) 안내 문구
   const delayMessage = (name: string, d: string): string => {
@@ -133,7 +145,8 @@ export async function GET(req: Request) {
   };
 
   const buildMsg =
-    variant === "delay" ? (name: string, d: string) => delayMessage(name, d)
+    variant === "early" ? earlyMessage
+    : variant === "delay" ? (name: string, d: string) => delayMessage(name, d)
     : variant === "apology" ? () => apologyMessage()
     : variant === "startmore" ? startMoreMessage
     : variant === "now" ? nowMessage
