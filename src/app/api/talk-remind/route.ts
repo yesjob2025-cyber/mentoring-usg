@@ -9,6 +9,10 @@ import type { User, TalkReservation } from "@/lib/types";
 const VALID_SLOT = new Set(
   TALK_SCHEDULE.flatMap((d) => d.slots.map((s) => `${d.date}|${s.topic}`))
 );
+// (날짜|분야) → 기업명
+const COMPANY_BY_SLOT = new Map(
+  TALK_SCHEDULE.flatMap((d) => d.slots.map((s) => [`${d.date}|${s.topic}`, s.company] as const))
+);
 
 // 특정 날짜 예약 학생에게 "오늘 행사 안내 + Zoom 접속 링크" 발송
 //  /api/talk-remind?secret=<SEED_SECRET>&date=2026-08-24            → 미리보기
@@ -108,13 +112,37 @@ export async function GET(req: Request) {
   const date = (url.searchParams.get("date") || "2026-08-24").trim();
   const doSend = url.searchParams.get("send") === "1";
   const variant = (url.searchParams.get("variant") || "").trim();
+  // 특정 분야·시간만 대상으로 좁히기 (예: 한 세션 시간 변경 안내)
+  const onlyTopic = (url.searchParams.get("topic") || "").trim();
+  const onlyTime = (url.searchParams.get("time") || "").trim();
+  const newTime = (url.searchParams.get("newtime") || "20:00").trim();
+
+  // 시간 변경(지연) 안내 문구
+  const delayMessage = (name: string, d: string): string => {
+    const company = onlyTopic ? COMPANY_BY_SLOT.get(`${d}|${onlyTopic}`) || "" : "";
+    const label = [onlyTopic, company].filter(Boolean).join(" · ");
+    return (
+      `[부울경 멘토링] 세션 시간 변경 안내\n\n` +
+      `${name}님, 오늘 ${md(d)} 예약하신 '${label}' 세션이 진행 멘토 사정으로 ` +
+      `예정보다 늦게 시작됩니다.\n` +
+      `${newTime}부터 시작하오니, 해당 시간에 맞춰 접속해 주세요. 기다리게 해 죄송합니다.\n\n` +
+      `· 접속: ${SITE}/talk-concert/zoom/${d}\n` +
+      `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+      `문의: 010-8553-6027`
+    );
+  };
+
   const buildMsg =
-    variant === "apology" ? () => apologyMessage()
+    variant === "delay" ? (name: string, d: string) => delayMessage(name, d)
+    : variant === "apology" ? () => apologyMessage()
     : variant === "startmore" ? startMoreMessage
     : variant === "now" ? nowMessage
     : variant === "start" ? startMessage
     : remindMessage;
-  const subject = variant === "apology" ? "[부울경 토크콘서트] 사과 말씀" : "[부울경 멘토링] 오늘 토크콘서트 안내";
+  const subject =
+    variant === "apology" ? "[부울경 토크콘서트] 사과 말씀"
+    : variant === "delay" ? "[부울경 멘토링] 세션 시간 변경 안내"
+    : "[부울경 멘토링] 오늘 토크콘서트 안내";
 
   const [reservations, users] = await Promise.all([
     all<TalkReservation>("talkReservations"),
@@ -134,6 +162,8 @@ export async function GET(req: Request) {
   for (const r of reservations) {
     if (r.date !== date) continue;
     if (!VALID_SLOT.has(`${r.date}|${r.topic}`)) { staleExcluded += 1; continue; }
+    if (onlyTopic && r.topic !== onlyTopic) continue;
+    if (onlyTime && r.time !== onlyTime) continue;
     const arr = byUser.get(r.userId) ?? [];
     arr.push({ time: r.time, topic: r.topic });
     byUser.set(r.userId, arr);
