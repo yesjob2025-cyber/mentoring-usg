@@ -117,6 +117,9 @@ export async function GET(req: Request) {
   const onlyTime = (url.searchParams.get("time") || "").trim();
   const newTime = (url.searchParams.get("newtime") || "20:00").trim();
   const byTime = (url.searchParams.get("by") || "18:45").trim();
+  // 특정 세션(분야·시간) 예약자를 이번 발송에서 통째로 제외 (겹침 방지)
+  const exclTopic = (url.searchParams.get("excltopic") || "").trim();
+  const exclTime = (url.searchParams.get("excltime") || "").trim();
 
   // 일찍 접속 안내
   const earlyMessage = (name: string, d: string, slots: string, notice: string): string =>
@@ -170,10 +173,21 @@ export async function GET(req: Request) {
 
   // 해당 날짜 예약 → 학생별 그룹(예약 시간·분야 목록)
   // 옛 일정(현재 분야에 없는)으로 한 예약은 제외
+  // 제외 대상 사용자(특정 세션 예약자) 선별
+  const excludedUsers = new Set<string>();
+  if (exclTopic) {
+    for (const r of reservations) {
+      if (r.date === date && r.topic === exclTopic && (!exclTime || r.time === exclTime)) {
+        excludedUsers.add(r.userId);
+      }
+    }
+  }
+
   let staleExcluded = 0;
   const byUser = new Map<string, { time: string; topic: string }[]>();
   for (const r of reservations) {
     if (r.date !== date) continue;
+    if (excludedUsers.has(r.userId)) continue;
     if (!VALID_SLOT.has(`${r.date}|${r.topic}`)) { staleExcluded += 1; continue; }
     if (onlyTopic && r.topic !== onlyTopic) continue;
     if (onlyTime && r.time !== onlyTime) continue;
