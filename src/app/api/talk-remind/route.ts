@@ -164,8 +164,24 @@ export async function GET(req: Request) {
     );
   };
 
+  // 연기된 세션이 '오늘' 진행됨 — 참여 독려 (newdate = 오늘 진행 날짜)
+  const movedTodayMessage = (name: string, d: string): string => {
+    const company = onlyTopic ? COMPANY_BY_SLOT.get(`${d}|${onlyTopic}`) || "" : "";
+    const label = [onlyTopic, company].filter(Boolean).join(" · ");
+    const target = newDate || d;
+    return (
+      `[부울경 멘토링] 오늘 토크콘서트 안내\n\n` +
+      `${name}님, 앞서 연기 안내드린 '${label}' 세션이 오늘 ${md(target)} 저녁 7시에 진행됩니다. ` +
+      `준비해 주신 만큼 꼭 참여 부탁드립니다.\n\n` +
+      `· 오늘 접속: ${SITE}/talk-concert/zoom/${target}\n` +
+      `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+      `문의: 010-8553-6027`
+    );
+  };
+
   const buildMsg =
     variant === "early" ? earlyMessage
+    : variant === "movedtoday" ? (name: string, d: string) => movedTodayMessage(name, d)
     : variant === "postpone" ? (name: string, d: string) => postponeMessage(name, d)
     : variant === "delay" ? (name: string, d: string) => delayMessage(name, d)
     : variant === "apology" ? () => apologyMessage()
@@ -175,6 +191,7 @@ export async function GET(req: Request) {
     : remindMessage;
   const subject =
     variant === "apology" ? "[부울경 토크콘서트] 사과 말씀"
+    : variant === "movedtoday" ? "[부울경 멘토링] 오늘 토크콘서트 안내"
     : variant === "postpone" ? "[부울경 멘토링] 세션 일정 연기 안내"
     : variant === "delay" ? "[부울경 멘토링] 세션 시간 변경 안내"
     : "[부울경 멘토링] 오늘 토크콘서트 안내";
