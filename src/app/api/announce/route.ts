@@ -2,7 +2,36 @@ import { NextResponse } from "next/server";
 import { all } from "@/lib/data";
 import { listSchools } from "@/lib/repo";
 import { sendInviteLms } from "@/lib/messaging";
-import type { User, School } from "@/lib/types";
+import { TALK_SCHEDULE, weekday } from "@/lib/talk-schedule";
+import type { User, School, TalkReservation } from "@/lib/types";
+
+// 현재 일정에 존재하는 (날짜|분야) 조합만 유효 — 옛 일정 예약 무시용
+const VALID_SLOT = new Set(
+  TALK_SCHEDULE.flatMap((d) => d.slots.map((s) => `${d.date}|${s.topic}`))
+);
+
+// 특정 날짜의 라인업(분야 · 기업)을 문자용 목록으로 구성
+function dayLineup(date: string): string {
+  const day = TALK_SCHEDULE.find((d) => d.date === date);
+  if (!day) return "";
+  const [, m, d] = date.split("-");
+  const head = `▶ ${Number(m)}/${Number(d)}(${weekday(date)})`;
+  const lines = day.slots.map((s) => `· ${s.topic}${s.company ? ` · ${s.company}` : ""}`);
+  return [head, ...lines].join("\n");
+}
+
+// 오늘·내일(마지막) 라인업 안내 + 미신청자 신청 독려
+function lastCallMessage(name: string, dates: string[]): string {
+  return (
+    `[부울경 연합 현직자 멘토링] 오늘·내일 마지막 토크콘서트 안내\n\n` +
+    `${name}님, 온라인 토크콘서트가 오늘·내일 저녁 7시로 마무리됩니다.\n` +
+    `아직 신청 전이시라면 아래 현직자 멘토링을 지금 예약하고 참여하세요!\n\n` +
+    dates.map(dayLineup).filter(Boolean).join("\n\n") +
+    `\n\n· 예약·접속: ${SITE}/talk-concert\n` +
+    `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+    `문의: 010-8553-6027`
+  );
+}
 
 // 등록 학생 전체(또는 학교별)에게 토크콘서트 안내 문자(LMS) 발송
 //  /api/announce?secret=<SEED_SECRET>                → 미리보기(dry-run)
@@ -55,12 +84,27 @@ export async function GET(req: Request) {
   const doSend = url.searchParams.get("send") === "1";
   const schoolFilter = (url.searchParams.get("school") || "").trim();
   const variant = (url.searchParams.get("variant") || "").trim();
+  // 특정 날짜(들)에 이미 예약한 학생을 발송 대상에서 제외 (예: 오늘·내일 신청자 제외)
+  const exclDates = (url.searchParams.get("exclreserved") || "")
+    .split(",").map((d) => d.trim()).filter(Boolean);
   const buildMsg =
-    variant === "nextweek" ? nextWeekMessage
+    variant === "lastcall" ? (name: string) => lastCallMessage(name, exclDates)
+    : variant === "nextweek" ? nextWeekMessage
     : variant === "continue" ? continueMessage
     : announceMessage;
 
-  const [users, schools] = await Promise.all([all<User>("users"), listSchools()]);
+  const [users, schools, reservations] = await Promise.all([
+    all<User>("users"),
+    listSchools(),
+    exclDates.length ? all<TalkReservation>("talkReservations") : Promise.resolve([]),
+  ]);
+  // 지정 날짜에 유효 예약이 있는 학생 → 제외 대상
+  const reservedUserIds = new Set<string>();
+  for (const r of reservations) {
+    if (exclDates.includes(r.date) && VALID_SLOT.has(`${r.date}|${r.topic}`)) {
+      reservedUserIds.add(r.userId);
+    }
+  }
   const schoolById = new Map<string, School>(schools.map((s) => [s.id, s]));
   // 학교 필터: id 또는 code 로 지정
   let targetSchoolId = "";
@@ -82,6 +126,7 @@ export async function GET(req: Request) {
       (u.role ?? "student") === "student" &&
       (u.phone || "").replace(/[^0-9]/g, "").length >= 10 &&
       !BLOCK.has((u.phone || "").replace(/[^0-9]/g, "")) &&
+      !reservedUserIds.has(u.id) &&
       (!targetSchoolId || u.schoolId === targetSchoolId)
   );
 
@@ -100,6 +145,8 @@ export async function GET(req: Request) {
       dryRun: true,
       note: "미리보기입니다. 실제 발송은 &send=1. (학교별: &school=코드)",
       targets: students.length,
+      reservedExcluded: reservedUserIds.size,
+      exclDates,
       bySchool,
       noPhoneSkipped: noPhone,
       sampleMessage: buildMsg("홍길동"),
