@@ -116,6 +116,7 @@ export async function GET(req: Request) {
   const onlyTopic = (url.searchParams.get("topic") || "").trim();
   const onlyTime = (url.searchParams.get("time") || "").trim();
   const newTime = (url.searchParams.get("newtime") || "20:00").trim();
+  const newDate = (url.searchParams.get("newdate") || "").trim();
   const byTime = (url.searchParams.get("by") || "18:45").trim();
   // 특정 세션(분야·시간) 예약자를 이번 발송에서 통째로 제외 (겹침 방지)
   const exclTopic = (url.searchParams.get("excltopic") || "").trim();
@@ -147,8 +148,25 @@ export async function GET(req: Request) {
     );
   };
 
+  // 세션 일정 연기(다른 날짜로) 안내 문구
+  const postponeMessage = (name: string, d: string): string => {
+    const company = onlyTopic ? COMPANY_BY_SLOT.get(`${d}|${onlyTopic}`) || "" : "";
+    const label = [onlyTopic, company].filter(Boolean).join(" · ");
+    const target = newDate || d;
+    return (
+      `[부울경 멘토링] 세션 일정 연기 안내\n\n` +
+      `${name}님, 예약하신 '${label}' 세션이 진행 멘토님의 긴급 업무로 ` +
+      `${md(target)}로 연기되었습니다.\n` +
+      `진행 시간은 동일하게 저녁 7시이며, 준비해 주신 만큼 꼭 참여 부탁드립니다.\n\n` +
+      `· ${md(target)} 접속: ${SITE}/talk-concert/zoom/${target}\n` +
+      `· 참여: 화면 ON / 대화명 «학교+이름» / 질문은 채팅창\n\n` +
+      `일정 변경으로 불편을 드려 죄송합니다. 문의: 010-8553-6027`
+    );
+  };
+
   const buildMsg =
     variant === "early" ? earlyMessage
+    : variant === "postpone" ? (name: string, d: string) => postponeMessage(name, d)
     : variant === "delay" ? (name: string, d: string) => delayMessage(name, d)
     : variant === "apology" ? () => apologyMessage()
     : variant === "startmore" ? startMoreMessage
@@ -157,6 +175,7 @@ export async function GET(req: Request) {
     : remindMessage;
   const subject =
     variant === "apology" ? "[부울경 토크콘서트] 사과 말씀"
+    : variant === "postpone" ? "[부울경 멘토링] 세션 일정 연기 안내"
     : variant === "delay" ? "[부울경 멘토링] 세션 시간 변경 안내"
     : "[부울경 멘토링] 오늘 토크콘서트 안내";
 
