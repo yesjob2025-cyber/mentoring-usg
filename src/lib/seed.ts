@@ -209,5 +209,6 @@ export function buildSeed(): Database {
     talkSessions: buildTalkSessions(),
     talkAttendance: [],
     talkReservations: [],
+    settlements: [],
   };
 }

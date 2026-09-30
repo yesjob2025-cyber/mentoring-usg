@@ -131,6 +131,19 @@ export interface PayoutRecord {
   createdAt: string;
 }
 
+/** 멘토별 질의응답 답변 건수 정산 확인 (멘토가 확인 → 비용 지급 근거) */
+export interface SettlementConfirmation {
+  token: string; // 멘토 확인용 링크 토큰 (id 역할)
+  mentorId: string;
+  mentorName: string;
+  company: string; // 스냅샷
+  phone: string; // 스냅샷 (승인 멘토 실번호)
+  asOf: string; // 기준일 YYYY-MM-DD (예: 2026-09-30)
+  answerCount: number; // 기준일까지 답변 완료 건수 스냅샷
+  confirmedAt?: string; // 멘토가 '확인' 누른 시각 (ISO)
+  createdAt: string;
+}
+
 /** 접속/활동 이벤트 (관리자 대시보드용) */
 export interface ActivityEvent {
   id: string;
@@ -193,4 +206,5 @@ export interface Database {
   talkSessions: TalkSession[];
   talkAttendance: TalkAttendance[];
   talkReservations: TalkReservation[];
+  settlements: SettlementConfirmation[];
 }

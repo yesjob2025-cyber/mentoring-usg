@@ -387,6 +387,7 @@ async function SuperAdminDashboard() {
           <h1 className="mt-3 text-3xl font-black">부울경 연합 전체 대시보드</h1>
           <p className="mt-1 text-ink-soft">참여 {g.schoolCount}개교의 현황을 한눈에 확인하세요.</p>
         </div>
+        <a href="/admin/settlements" className="btn-outline text-sm">답변 정산 확인 →</a>
       </div>
 
       {/* KPI */}

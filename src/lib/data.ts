@@ -25,6 +25,7 @@ const TABLE: Record<Collection, string> = {
   talkSessions: "talk_sessions",
   talkAttendance: "talk_attendance",
   talkReservations: "talk_reservations",
+  settlements: "settlement_confirmations",
 };
 
 export const usingSupabase = hasSupabase;
@@ -111,7 +112,7 @@ export async function remove(c: Collection, idField: string, idValue: string): P
 
 export async function clear(c: Collection): Promise<void> {
   if (hasSupabase) {
-    const idField = c === "answerTokens" ? "token" : "id";
+    const idField = c === "answerTokens" || c === "settlements" ? "token" : "id";
     const { error } = await supabase().from(TABLE[c]).delete().neq(idField, "__never_matches__");
     if (error) throw new Error(`[data.clear ${c}] ${error.message}`);
     return;
