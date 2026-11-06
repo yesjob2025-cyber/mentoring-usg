@@ -25,6 +25,7 @@ export async function GET(req: Request) {
   const schoolQ = (url.searchParams.get("school") || "").trim();
   if (!schoolQ) return NextResponse.json({ error: "school 파라미터 필요" }, { status: 400 });
   const doAssign = url.searchParams.get("assign") === "1";
+  const singleOnly = url.searchParams.get("single") === "1"; // 1명 멘토에게만 보낸 질문만
 
   const schools = await listSchools();
   const school =
@@ -53,6 +54,7 @@ export async function GET(req: Request) {
     if (t.used) return false;
     const q = qById.get(t.questionId);
     if (!q || q.schoolId !== school.id) return false;
+    if (singleOnly && (tokenMentorsByQ.get(t.questionId)?.size ?? 0) > 1) return false; // 여러 멘토 선택 질문 제외
     return !isApproved(mById.get(t.mentorId));
   });
 
