@@ -319,6 +319,70 @@ export async function answerLinksForQuestion(questionId: string) {
   });
 }
 
+/** 학생별 질문 → 질문받은 멘토 → 답변여부 (학교 제출용). schoolId 생략 시 전체 */
+export interface QuestionMentorRow {
+  studentName: string;
+  studentNo: string;
+  department: string;
+  grade: string;
+  schoolId: string;
+  questionTitle: string;
+  questionDate: string; // ISO
+  mentorName: string;
+  mentorCompany: string;
+  answered: boolean;
+  answeredAt: string; // ISO or ""
+}
+
+export async function listQuestionMentorRows(schoolId?: string): Promise<QuestionMentorRow[]> {
+  const [questions, tokens, mentors, answers, users] = await Promise.all([
+    all<Question>("questions"),
+    all<AnswerToken>("answerTokens"),
+    all<Mentor>("mentors"),
+    all<Answer>("answers"),
+    all<User>("users"),
+  ]);
+  const qById = new Map(questions.map((q) => [q.id, q]));
+  const mById = new Map(mentors.map((m) => [m.id, m]));
+  const uById = new Map(users.map((u) => [u.id, u]));
+  // (questionId|mentorId) → 가장 이른 답변 시각
+  const ansAt = new Map<string, string>();
+  for (const a of answers) {
+    const k = `${a.questionId}|${a.mentorId}`;
+    const cur = ansAt.get(k);
+    if (!cur || a.createdAt < cur) ansAt.set(k, a.createdAt);
+  }
+  const rows: QuestionMentorRow[] = [];
+  for (const t of tokens) {
+    const q = qById.get(t.questionId);
+    if (!q) continue;
+    if (schoolId && q.schoolId !== schoolId) continue;
+    const u = uById.get(q.authorUserId);
+    const m = mById.get(t.mentorId);
+    const at = ansAt.get(`${t.questionId}|${t.mentorId}`) ?? "";
+    rows.push({
+      studentName: u?.name ?? q.authorName,
+      studentNo: u?.studentNo ?? "",
+      department: u?.department ?? "",
+      grade: u?.grade ?? "",
+      schoolId: q.schoolId,
+      questionTitle: q.title,
+      questionDate: q.createdAt,
+      mentorName: m?.name ?? "(삭제된 멘토)",
+      mentorCompany: m?.company ?? "",
+      answered: Boolean(t.used) || Boolean(at),
+      answeredAt: at,
+    });
+  }
+  rows.sort(
+    (a, b) =>
+      a.studentName.localeCompare(b.studentName) ||
+      a.questionDate.localeCompare(b.questionDate) ||
+      a.mentorName.localeCompare(b.mentorName)
+  );
+  return rows;
+}
+
 export async function submitAnswerByToken(
   token: string,
   body: string

@@ -14,6 +14,8 @@ import {
   listAllSlotReservations,
   listSchools,
   listStudents,
+  listQuestionMentorRows,
+  type QuestionMentorRow,
 } from "@/lib/repo";
 import { themeMeta } from "@/lib/taxonomy";
 import { formatKST, formatKSTDate } from "@/lib/format";
@@ -24,7 +26,28 @@ import { SchoolQuestions, type SchoolQuestionRow } from "./school-questions";
 import { MentorQna, type MentorQnaRow } from "./mentor-qna";
 import { TalkReservations, type ResRow } from "./talk-reservations";
 import { StudentRoster, type StudentRow } from "./student-roster";
+import { QuestionMentors, type QMRow } from "./question-mentors";
 import type { User } from "@/lib/types";
+
+function buildQMRows(
+  rows: QuestionMentorRow[],
+  schoolNameById: Map<string, string>,
+  withSchool: boolean
+): QMRow[] {
+  return rows.map((r) => ({
+    student: r.studentName,
+    studentNo: r.studentNo,
+    department: r.department,
+    grade: r.grade,
+    school: withSchool ? schoolNameById.get(r.schoolId) ?? r.schoolId : "",
+    question: r.questionTitle,
+    date: r.questionDate ? formatKSTDate(r.questionDate) : "",
+    mentor: r.mentorName,
+    mentorCompany: r.mentorCompany,
+    answered: r.answered,
+    answeredAt: r.answeredAt ? formatKSTDate(r.answeredAt) : "",
+  }));
+}
 
 async function buildStudentRows(students: User[], withSchool: boolean): Promise<StudentRow[]> {
   const schoolName = new Map<string, string>();
@@ -138,6 +161,9 @@ export default async function AdminDashboard() {
 
   // 등록 학생 명단 (우리 학교)
   const studentRows = await buildStudentRows(await listStudents(session.schoolId), false);
+
+  // 학생별 질문·멘토 현황 (우리 학교)
+  const qmRows = buildQMRows(await listQuestionMentorRows(session.schoolId), new Map(), false);
 
   const answerRate =
     stats.totalQuestions > 0
@@ -328,6 +354,9 @@ export default async function AdminDashboard() {
       {/* 등록 학생 명단 (우리 학교) */}
       <StudentRoster rows={studentRows} />
 
+      {/* 학생별 질문·멘토 현황 (우리 학교) */}
+      <QuestionMentors rows={qmRows} />
+
       {/* 학교 질문 전체 (이름·학번 + 검색) */}
       <SchoolQuestions questions={questionRows} />
     </div>
@@ -364,6 +393,9 @@ async function SuperAdminDashboard() {
 
   // 등록 학생 명단 (전 학교)
   const studentRows = await buildStudentRows(await listStudents(), true);
+
+  // 학생별 질문·멘토 현황 (전 학교)
+  const qmRows = buildQMRows(await listQuestionMentorRows(), g.schoolNameById, true);
 
   // 멘토 질문·답변 현황
   const mentorQ = await mentorQnaStats();
@@ -457,6 +489,9 @@ async function SuperAdminDashboard() {
 
       {/* 등록 학생 명단 (전 학교) */}
       <StudentRoster rows={studentRows} showSchool />
+
+      {/* 학생별 질문·멘토 현황 (전 학교) */}
+      <QuestionMentors rows={qmRows} showSchool />
 
       {/* 화상 교육장 출석 로그 (전체) */}
       <section className="mt-8 card overflow-hidden">
