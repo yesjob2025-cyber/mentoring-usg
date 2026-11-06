@@ -2,8 +2,8 @@ import { all, one, patch, insert, remove } from "./data";
 import { newToken } from "./crypto";
 import type { Answer, Mentor, SettlementConfirmation } from "./types";
 
-// 정산 기준일 기본값 (9/30 기준 답변 완료 건수)
-export const SETTLE_ASOF_DEFAULT = "2026-09-30";
+// 정산 기준일 기본값 (10/31 기준 누적 답변 완료 건수)
+export const SETTLE_ASOF_DEFAULT = "2026-10-31";
 // 미승인 멘토 공통 수신번호 (개별 발송 불가 → 지급 대상 제외)
 const COMMON = "01085536027";
 
