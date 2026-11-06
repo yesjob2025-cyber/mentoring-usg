@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { all, insert } from "@/lib/data";
 import { listSchools } from "@/lib/repo";
 import { newToken } from "@/lib/crypto";
-import type { AnswerToken, Mentor, MentorTags, Question, QuestionThemeRefs, User } from "@/lib/types";
+import type { Answer, AnswerToken, Mentor, MentorTags, Question, QuestionThemeRefs, User } from "@/lib/types";
 
 // 미승인 멘토의 미답변 질문 → 유사 분야 '승인 멘토'에게 재배정(대신 답변)
 //  /api/reassign?secret=<SEED_SECRET>&school=경성            → 매칭 플랜(미리보기)
@@ -46,26 +46,34 @@ export async function GET(req: Request) {
   if (!process.env.SEED_SECRET || secret !== process.env.SEED_SECRET) {
     return NextResponse.json({ error: "unauthorized (SEED_SECRET 필요)" }, { status: 401 });
   }
+  const allScope = url.searchParams.get("all") === "1"; // 전체 학교
   const schoolQ = (url.searchParams.get("school") || "").trim();
-  if (!schoolQ) return NextResponse.json({ error: "school 파라미터 필요" }, { status: 400 });
+  if (!allScope && !schoolQ) return NextResponse.json({ error: "school 파라미터 필요 (또는 all=1)" }, { status: 400 });
   const doAssign = url.searchParams.get("assign") === "1";
   const singleOnly = url.searchParams.get("single") === "1"; // 1명 멘토에게만 보낸 질문만
 
   const schools = await listSchools();
-  const school =
-    schools.find((s) => s.code?.toUpperCase() === schoolQ.toUpperCase()) ||
-    schools.find((s) => s.name.includes(schoolQ));
-  if (!school) return NextResponse.json({ error: `학교를 찾을 수 없습니다: ${schoolQ}` }, { status: 404 });
+  const schoolName = new Map(schools.map((s) => [s.id, s.name]));
+  let school: { id: string; name: string } | undefined;
+  if (!allScope) {
+    const found =
+      schools.find((s) => s.code?.toUpperCase() === schoolQ.toUpperCase()) ||
+      schools.find((s) => s.name.includes(schoolQ));
+    if (!found) return NextResponse.json({ error: `학교를 찾을 수 없습니다: ${schoolQ}` }, { status: 404 });
+    school = found;
+  }
 
-  const [questions, tokens, mentors, users] = await Promise.all([
+  const [questions, tokens, mentors, users, answers] = await Promise.all([
     all<Question>("questions"),
     all<AnswerToken>("answerTokens"),
     all<Mentor>("mentors"),
     all<User>("users"),
+    all<Answer>("answers"),
   ]);
   const qById = new Map(questions.map((q) => [q.id, q]));
   const mById = new Map(mentors.map((m) => [m.id, m]));
   const uById = new Map(users.map((u) => [u.id, u]));
+  const answeredQ = new Set(answers.map((a) => a.questionId)); // 이미 답변된 질문(운영사무국 포함)
 
   // 질문별 이미 토큰 보유 멘토 집합(중복 배정 방지)
   const tokenMentorsByQ = new Map<string, Set<string>>();
@@ -73,11 +81,13 @@ export async function GET(req: Request) {
     (tokenMentorsByQ.get(t.questionId) ?? tokenMentorsByQ.set(t.questionId, new Set()).get(t.questionId)!).add(t.mentorId);
   }
 
-  // 대상: 해당 학교 · 미승인 멘토 · 미답변 토큰
+  // 대상: (해당 학교) · 미승인 멘토 · 미답변 토큰 · 질문에 아직 답변 없음
   const targets = tokens.filter((t) => {
     if (t.used) return false;
     const q = qById.get(t.questionId);
-    if (!q || q.schoolId !== school.id) return false;
+    if (!q) return false;
+    if (!allScope && q.schoolId !== school!.id) return false;
+    if (answeredQ.has(t.questionId)) return false; // 이미 답변된 질문 제외
     if (singleOnly && (tokenMentorsByQ.get(t.questionId)?.size ?? 0) > 1) return false; // 여러 멘토 선택 질문 제외
     return !isApproved(mById.get(t.mentorId));
   });
@@ -124,6 +134,7 @@ export async function GET(req: Request) {
     }
 
     rows.push({
+      school: schoolName.get(q.schoolId) ?? q.schoolId,
       student: u?.name ?? q.authorName,
       questionTitle: q.title,
       questionId: q.id,
@@ -146,7 +157,7 @@ export async function GET(req: Request) {
   for (const r of rows) if (r.matched) bySubstitute[r.suggestedMentor] = (bySubstitute[r.suggestedMentor] ?? 0) + 1;
 
   return NextResponse.json({
-    school: school.name,
+    scope: allScope ? "전체 학교" : school!.name,
     mode: doAssign ? "assign(토큰 생성)" : "plan(미리보기)",
     totalUnanswered: rows.length,
     matched: rows.length - noMatch,
