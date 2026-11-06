@@ -52,6 +52,19 @@ export async function confirmSettlement(
   return { ok: true, alreadyConfirmed: false };
 }
 
+/** 운영자 지급완료 처리 토글 */
+export async function setPaid(
+  token: string,
+  paid: boolean
+): Promise<{ ok: boolean; error?: string }> {
+  const row = await getSettlement(token);
+  if (!row) return { ok: false, error: "대상을 찾을 수 없습니다." };
+  await patch("settlements", "token", token, {
+    paidAt: paid ? new Date().toISOString() : null,
+  });
+  return { ok: true };
+}
+
 export interface InitResult {
   asOf: string;
   eligibleMentors: number; // 기준일까지 1건 이상 답변한 멘토

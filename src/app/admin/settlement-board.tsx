@@ -1,26 +1,37 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { setPaidAction } from "@/app/actions/settle";
 
 export interface SettleRow {
+  token: string;
   mentor: string;
   company: string;
   answers: number;
+  amount: number;
   phone: string;
   approved: boolean;
   confirmed: boolean;
   confirmedAt: string;
+  paid: boolean;
+  paidAt: string;
 }
 
+const won = (n: number) => n.toLocaleString() + "원";
+
 export function SettlementBoard({ rows, asOf }: { rows: SettleRow[]; asOf: string }) {
+  const router = useRouter();
   const [q, setQ] = useState("");
-  const [onlyConfirmed, setOnlyConfirmed] = useState<"all" | "confirmed" | "pending">("all");
+  const [tab, setTab] = useState<"all" | "paid" | "unpaid">("all");
+  const [pending, startTransition] = useTransition();
+  const [busy, setBusy] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const kw = q.trim();
     return rows.filter((r) => {
-      if (onlyConfirmed === "confirmed" && !r.confirmed) return false;
-      if (onlyConfirmed === "pending" && r.confirmed) return false;
+      if (tab === "paid" && !r.paid) return false;
+      if (tab === "unpaid" && r.paid) return false;
       if (!kw) return true;
       return (
         r.mentor.includes(kw) ||
@@ -28,12 +39,22 @@ export function SettlementBoard({ rows, asOf }: { rows: SettleRow[]; asOf: strin
         r.phone.replace(/[^0-9]/g, "").includes(kw.replace(/[^0-9]/g, ""))
       );
     });
-  }, [rows, q, onlyConfirmed]);
+  }, [rows, q, tab]);
+
+  function togglePaid(r: SettleRow) {
+    setBusy(r.token);
+    startTransition(async () => {
+      const res = await setPaidAction(r.token, !r.paid);
+      setBusy(null);
+      if (res.error) alert(res.error);
+      else router.refresh();
+    });
+  }
 
   function exportCsv() {
-    const header = ["멘토", "기업", "답변건수", "연락처", "확인여부", "확인시각"];
+    const header = ["멘토", "기업", "답변건수", "지급액", "연락처", "지급상태", "지급일"];
     const lines = filtered.map((r) =>
-      [r.mentor, r.company, String(r.answers), r.phone, r.confirmed ? "확인" : "미확인", r.confirmedAt]
+      [r.mentor, r.company, String(r.answers), String(r.amount), r.phone, r.paid ? "지급완료" : "미지급", r.paidAt]
         .map((c) => `"${String(c).replace(/"/g, '""')}"`)
         .join(",")
     );
@@ -47,16 +68,16 @@ export function SettlementBoard({ rows, asOf }: { rows: SettleRow[]; asOf: strin
     URL.revokeObjectURL(url);
   }
 
-  const totalAnswers = filtered.reduce((s, r) => s + r.answers, 0);
-  const confirmedAnswers = filtered.filter((r) => r.confirmed).reduce((s, r) => s + r.answers, 0);
+  const totalAmount = filtered.reduce((s, r) => s + r.amount, 0);
+  const paidAmount = filtered.filter((r) => r.paid).reduce((s, r) => s + r.amount, 0);
 
   return (
     <section className="mt-8 card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-line p-5">
         <div>
-          <h2 className="text-lg font-extrabold">답변 정산 확인 현황</h2>
+          <h2 className="text-lg font-extrabold">지급 처리 현황</h2>
           <p className="mt-0.5 text-xs text-ink-muted">
-            {asOf} 기준 · 표시 {filtered.length}명 · 답변 {totalAnswers}건 (확인 {confirmedAnswers}건)
+            {asOf} 기준 · 표시 {filtered.length}명 · 합계 {won(totalAmount)} (지급완료 {won(paidAmount)})
           </p>
         </div>
         <button onClick={exportCsv} className="btn-outline text-sm">CSV 내보내기</button>
@@ -70,19 +91,17 @@ export function SettlementBoard({ rows, asOf }: { rows: SettleRow[]; asOf: strin
           className="field-input max-w-xs text-sm"
         />
         <div className="flex gap-1">
-          {([["all", "전체"], ["confirmed", "확인완료"], ["pending", "미확인"]] as const).map(
-            ([k, label]) => (
-              <button
-                key={k}
-                onClick={() => setOnlyConfirmed(k)}
-                className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
-                  onlyConfirmed === k ? "bg-brand-500 text-white" : "bg-white text-ink-soft border border-ink-line"
-                }`}
-              >
-                {label}
-              </button>
-            )
-          )}
+          {([["all", "전체"], ["unpaid", "미지급"], ["paid", "지급완료"]] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
+                tab === k ? "bg-brand-500 text-white" : "bg-white text-ink-soft border border-ink-line"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -92,36 +111,44 @@ export function SettlementBoard({ rows, asOf }: { rows: SettleRow[]; asOf: strin
             <tr>
               <th className="px-5 py-3 font-semibold">멘토</th>
               <th className="px-5 py-3 font-semibold">기업</th>
-              <th className="px-5 py-3 text-right font-semibold">답변 건수</th>
+              <th className="px-5 py-3 text-right font-semibold">답변</th>
+              <th className="px-5 py-3 text-right font-semibold">지급액</th>
               <th className="px-5 py-3 font-semibold">연락처</th>
-              <th className="px-5 py-3 font-semibold">확인</th>
+              <th className="px-5 py-3 font-semibold">지급 처리</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-ink-line">
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-ink-muted">
+                <td colSpan={6} className="px-5 py-8 text-center text-ink-muted">
                   표시할 정산 대상이 없습니다.
                 </td>
               </tr>
             )}
             {filtered.map((r) => (
-              <tr key={`${r.mentor}-${r.phone}`} className={r.confirmed ? "bg-emerald-50/40" : undefined}>
+              <tr key={r.token} className={r.paid ? "bg-emerald-50/40" : undefined}>
                 <td className="px-5 py-3 font-semibold">{r.mentor}</td>
                 <td className="px-5 py-3 text-ink-soft">{r.company || "-"}</td>
                 <td className="px-5 py-3 text-right font-bold">{r.answers}</td>
+                <td className="px-5 py-3 text-right font-bold tabular-nums">{won(r.amount)}</td>
                 <td className="px-5 py-3 font-mono text-xs text-ink-muted">
-                  {r.approved ? r.phone : "미승인·발송제외"}
+                  {r.approved ? r.phone : "미승인"}
                 </td>
                 <td className="px-5 py-3">
-                  {r.confirmed ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      {r.confirmedAt || "확인"}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-ink-muted">미확인</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => togglePaid(r)}
+                      disabled={pending && busy === r.token}
+                      className={`rounded-md px-2.5 py-1 text-xs font-bold disabled:opacity-50 ${
+                        r.paid
+                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                          : "border border-ink-line bg-white text-ink-soft hover:bg-cream-100"
+                      }`}
+                    >
+                      {busy === r.token ? "처리 중…" : r.paid ? "✓ 지급완료" : "지급완료 처리"}
+                    </button>
+                    {r.paid && r.paidAt && <span className="text-[11px] text-ink-muted">{r.paidAt}</span>}
+                  </div>
                 </td>
               </tr>
             ))}

@@ -140,7 +140,9 @@ export interface SettlementConfirmation {
   phone: string; // 스냅샷 (승인 멘토 실번호)
   asOf: string; // 기준일 YYYY-MM-DD (예: 2026-09-30)
   answerCount: number; // 기준일까지 답변 완료 건수 스냅샷
+  payAmount?: number; // 지급액(원) — 확정 명단 반영 시
   confirmedAt?: string; // 멘토가 '확인' 누른 시각 (ISO)
+  paidAt?: string; // 지급 완료 처리 시각 (ISO) — 운영자 체크
   createdAt: string;
 }
 
