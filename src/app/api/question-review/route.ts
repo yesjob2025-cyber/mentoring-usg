@@ -92,7 +92,7 @@ export async function GET(req: Request) {
       school: schoolName.get(q.schoolId) ?? q.schoolId,
       student: u?.name ?? q.authorName,
       title: q.title,
-      body: (q.body ?? "").slice(0, 300),
+      body: flag ? (q.body ?? "") : (q.body ?? "").slice(0, 300), // 의심 건은 전체 본문
       flag, // "" = 정상, test/greeting/short/contact = 의심
     });
   }
