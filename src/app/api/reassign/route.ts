@@ -127,6 +127,8 @@ export async function GET(req: Request) {
           mentorId: pick.id,
           used: false,
           createdAt: new Date().toISOString(),
+          reassigned: true,
+          reassignedFrom: orig?.name ?? "",
         });
         already.add(pick.id);
         answerLink = `${SITE}/answer/${tok}`;

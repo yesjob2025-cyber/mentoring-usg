@@ -394,12 +394,17 @@ export async function submitAnswerByToken(
   const question = await getQuestion(t.questionId);
   if (!mentor || !question) return { ok: false, error: "질문 정보를 찾을 수 없습니다." };
 
+  // 재배정(대신 답변) 토큰이면 학생에게 투명하게 안내 문구를 덧붙임
+  const prefix = t.reassigned
+    ? `※ 원래 질문을 받은 멘토님의 답변이 지연되어, 유사 분야 현직자 멘토가 대신 답변드립니다.\n\n`
+    : "";
+
   const answer: Answer = {
     id: newId("a"),
     questionId: question.id,
     mentorId: mentor.id,
     mentorName: mentor.name,
-    body: body.trim(),
+    body: prefix + body.trim(),
     createdAt: nowIso(),
     likes: 0,
     adopted: false,

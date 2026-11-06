@@ -117,6 +117,8 @@ export interface AnswerToken {
   mentorId: string;
   used: boolean;
   createdAt: string;
+  reassigned?: boolean; // 유사 분야 멘토 재배정(대신 답변) 토큰 여부
+  reassignedFrom?: string; // 원래 질문받은 멘토명 (표시용)
 }
 
 /** 내부 정산 원장 (실 송금 없음) */
