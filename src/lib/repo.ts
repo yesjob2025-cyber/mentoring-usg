@@ -18,6 +18,7 @@ import type {
   ActivityEvent,
 } from "./types";
 import { TALK_TIME_SLOTS, TALK_MAX_PER_DAY } from "./talk-config";
+import { themeName } from "./taxonomy";
 
 const nowIso = () => new Date().toISOString();
 
@@ -330,6 +331,8 @@ export interface QuestionMentorRow {
   questionDate: string; // ISO
   mentorName: string;
   mentorCompany: string;
+  mentorTitle: string; // 직무(직책)
+  mentorField: string; // 분야(산업)
   answered: boolean;
   answeredAt: string; // ISO or ""
 }
@@ -370,6 +373,8 @@ export async function listQuestionMentorRows(schoolId?: string): Promise<Questio
       questionDate: q.createdAt,
       mentorName: m?.name ?? "(삭제된 멘토)",
       mentorCompany: m?.company ?? "",
+      mentorTitle: m?.title ?? "",
+      mentorField: m ? (themeName(m.tags?.industry?.[0]) ?? themeName(m.tags?.job?.[0]) ?? "") : "",
       answered: Boolean(t.used) || Boolean(at),
       answeredAt: at,
     });

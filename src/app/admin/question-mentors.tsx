@@ -12,6 +12,8 @@ export interface QMRow {
   date: string; // 표시용(YYYY-MM-DD)
   mentor: string;
   mentorCompany: string;
+  mentorTitle: string;
+  mentorField: string;
   answered: boolean;
   answeredAt: string;
 }
@@ -40,13 +42,13 @@ export function QuestionMentors({ rows, showSchool }: { rows: QMRow[]; showSchoo
   function exportCsv() {
     const header = [
       ...(showSchool ? ["학교"] : []),
-      "학생", "학번", "학과", "학년", "질문 제목", "질문일", "질문받은 멘토", "멘토 기업", "답변여부", "답변일",
+      "학생", "학번", "학과", "학년", "질문 제목", "질문일", "질문받은 멘토", "소속", "직무", "분야", "답변여부", "답변일",
     ];
     const lines = filtered.map((r) =>
       [
         ...(showSchool ? [r.school] : []),
         r.student, r.studentNo, r.department, r.grade, r.question, r.date,
-        r.mentor, r.mentorCompany, r.answered ? "답변완료" : "미답변", r.answeredAt,
+        r.mentor, r.mentorCompany, r.mentorTitle, r.mentorField, r.answered ? "답변완료" : "미답변", r.answeredAt,
       ]
         .map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`)
         .join(",")
@@ -133,6 +135,11 @@ export function QuestionMentors({ rows, showSchool }: { rows: QMRow[]; showSchoo
                 <td className="px-4 py-3">
                   <span className="font-semibold">{r.mentor}</span>
                   {r.mentorCompany ? <span className="ml-1 text-xs text-ink-muted">{r.mentorCompany}</span> : null}
+                  {(r.mentorTitle || r.mentorField) ? (
+                    <span className="block text-xs text-ink-muted">
+                      {[r.mentorField, r.mentorTitle].filter(Boolean).join(" · ")}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-4 py-3">
                   <span

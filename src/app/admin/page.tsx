@@ -44,6 +44,8 @@ function buildQMRows(
     date: r.questionDate ? formatKSTDate(r.questionDate) : "",
     mentor: r.mentorName,
     mentorCompany: r.mentorCompany,
+    mentorTitle: r.mentorTitle,
+    mentorField: r.mentorField,
     answered: r.answered,
     answeredAt: r.answeredAt ? formatKSTDate(r.answeredAt) : "",
   }));
