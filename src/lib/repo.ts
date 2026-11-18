@@ -374,8 +374,10 @@ export async function listQuestionMentorRows(schoolId?: string): Promise<Questio
       questionDate: q.createdAt,
       mentorName: m?.name ?? "(삭제된 멘토)",
       mentorCompany: m?.company ?? "",
-      mentorTitle: m?.title ?? "",
-      mentorField: m ? (themeName(m.tags?.industry?.[0]) ?? themeName(m.tags?.job?.[0]) ?? "") : "",
+      // 직무: 표준 직무 태그 우선(인사총무·해외영업 등), 없으면 자유입력 직책
+      mentorTitle: m ? (themeName(m.tags?.job?.[0]) ?? m.title ?? "") : "",
+      // 분야: 산업 태그 라벨(반도체·금융·물류 등)
+      mentorField: m ? (themeName(m.tags?.industry?.[0]) ?? "") : "",
       answered: Boolean(t.used) || Boolean(at),
       answeredAt: at,
     });
