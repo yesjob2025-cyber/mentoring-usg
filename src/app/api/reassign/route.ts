@@ -74,6 +74,7 @@ export async function GET(req: Request) {
   const mById = new Map(mentors.map((m) => [m.id, m]));
   const uById = new Map(users.map((u) => [u.id, u]));
   const answeredQ = new Set(answers.map((a) => a.questionId)); // 이미 답변된 질문(운영사무국 포함)
+  const reassignedQ = new Set(tokens.filter((t) => t.reassigned).map((t) => t.questionId)); // 이미 재배정된 질문
 
   // 질문별 이미 토큰 보유 멘토 집합(중복 배정 방지)
   const tokenMentorsByQ = new Map<string, Set<string>>();
@@ -81,13 +82,14 @@ export async function GET(req: Request) {
     (tokenMentorsByQ.get(t.questionId) ?? tokenMentorsByQ.set(t.questionId, new Set()).get(t.questionId)!).add(t.mentorId);
   }
 
-  // 대상: (해당 학교) · 미승인 멘토 · 미답변 토큰 · 질문에 아직 답변 없음
+  // 대상: (해당 학교) · 미승인 멘토 · 미답변 토큰 · 질문에 아직 답변 없음 · 아직 재배정 안 됨
   const targets = tokens.filter((t) => {
     if (t.used) return false;
     const q = qById.get(t.questionId);
     if (!q) return false;
     if (!allScope && q.schoolId !== school!.id) return false;
     if (answeredQ.has(t.questionId)) return false; // 이미 답변된 질문 제외
+    if (reassignedQ.has(t.questionId)) return false; // 이미 재배정된 질문 제외(중복 방지)
     if (singleOnly && (tokenMentorsByQ.get(t.questionId)?.size ?? 0) > 1) return false; // 여러 멘토 선택 질문 제외
     return !isApproved(mById.get(t.mentorId));
   });
