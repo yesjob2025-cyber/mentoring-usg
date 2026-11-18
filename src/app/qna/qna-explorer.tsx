@@ -13,6 +13,17 @@ const KIND_ORDER: SelKind[] = ["industry", "job", "type", "major"];
 // 한 번에 질문할 수 있는 최대 멘토 수 (무분별한 다중 질문 방지)
 const MAX_MENTORS = 3;
 
+// 직무 그룹핑 (id/순서는 그대로, 이름 기준으로만 묶어서 표시)
+const JOB_GROUPS: { label: string; jobs: string[] }[] = [
+  { label: "경영·사무", jobs: ["인사총무", "회계세무", "사업기획", "행정지원", "컨설팅"] },
+  { label: "영업·마케팅", jobs: ["영업", "해외영업", "마케팅", "브랜드", "고객서비스", "매장관리"] },
+  { label: "IT·개발", jobs: ["SW개발", "IT인프라", "UI/UX", "AI/데이터"] },
+  { label: "엔지니어링·생산", jobs: ["기계설계", "전기설계", "생산관리", "품질관리", "구매", "연구개발", "안전관리"] },
+  { label: "금융", jobs: ["금융상담"] },
+  { label: "의료·복지", jobs: ["전문의료", "헬스케어", "사회복지"] },
+  { label: "디자인·콘텐츠", jobs: ["디자인", "콘텐츠기획"] },
+];
+
 interface Props {
   isStudent: boolean;
   initial: RecommendedMentor[];
@@ -166,23 +177,38 @@ export function QnaExplorer({ isStudent, initial, taxonomy, themeMeta }: Props) 
                 {isOpen && (
                   <div className="absolute left-0 right-0 top-full z-30 mt-1.5 max-h-72 overflow-y-auto rounded-xl border border-ink-line bg-white p-1.5 shadow-pop">
                     <p className="px-2 py-1 text-xs text-ink-muted">{meta.desc}</p>
-                    {taxonomy[kind].map((it) => {
-                      const active = refs[kind] === it.id;
-                      return (
-                        <button
-                          key={it.id}
-                          type="button"
-                          onClick={() => selectTheme(kind, it.id)}
-                          className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                            active
-                              ? "bg-ink text-cream-50"
-                              : "text-ink-soft hover:bg-brand-50 hover:text-ink"
-                          }`}
-                        >
-                          {it.name}
-                        </button>
-                      );
-                    })}
+                    {(kind === "job"
+                      ? JOB_GROUPS.map((g) => ({
+                          label: g.label,
+                          items: taxonomy.job.filter((it) => g.jobs.includes(it.name)),
+                        })).filter((g) => g.items.length > 0)
+                      : [{ label: "", items: taxonomy[kind] }]
+                    ).map((group) => (
+                      <div key={group.label || "all"}>
+                        {group.label && (
+                          <p className="mt-1.5 px-2 pb-0.5 pt-1 text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+                            {group.label}
+                          </p>
+                        )}
+                        {group.items.map((it) => {
+                          const active = refs[kind] === it.id;
+                          return (
+                            <button
+                              key={it.id}
+                              type="button"
+                              onClick={() => selectTheme(kind, it.id)}
+                              className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                                active
+                                  ? "bg-ink text-cream-50"
+                                  : "text-ink-soft hover:bg-brand-50 hover:text-ink"
+                              }`}
+                            >
+                              {it.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
