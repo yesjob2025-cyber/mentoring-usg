@@ -110,6 +110,18 @@ export interface Answer {
   payoutAmount: number; // 채택 시 차등 지급액(내부 정산 기록)
 }
 
+/** 답변에 대한 학생의 카카오식 반응 + 짧은 코멘트(≤20자) */
+export interface AnswerReaction {
+  id: string;
+  answerId: string;
+  questionId: string;
+  userId: string;
+  userName: string; // 스냅샷(표시 시 마스킹)
+  emoji: string; // 반응 이모지
+  comment: string; // 짧은 코멘트 (최대 20자, 선택)
+  createdAt: string;
+}
+
 /** 멘토가 로그인 없이 답변할 수 있는 토큰 링크 */
 export interface AnswerToken {
   token: string;
@@ -211,4 +223,5 @@ export interface Database {
   talkAttendance: TalkAttendance[];
   talkReservations: TalkReservation[];
   settlements: SettlementConfirmation[];
+  reactions: AnswerReaction[];
 }

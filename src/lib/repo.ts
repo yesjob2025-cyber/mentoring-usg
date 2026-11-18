@@ -14,6 +14,7 @@ import type {
   TalkReservation,
   TalkTrack,
   AnswerToken,
+  AnswerReaction,
   PayoutRecord,
   ActivityEvent,
 } from "./types";
@@ -458,6 +459,44 @@ export async function deleteQuestion(questionId: string): Promise<void> {
     await remove("payouts", "id", p.id);
   }
   await remove("questions", "id", questionId);
+}
+
+// ── 답변 반응(카카오식) ─────────────────────────────────
+export const REACTION_EMOJIS = ["🙏", "👍", "❤️", "👏", "😊"];
+
+export async function listReactionsByQuestion(questionId: string): Promise<AnswerReaction[]> {
+  const rows = await all<AnswerReaction>("reactions");
+  return rows.filter((r) => r.questionId === questionId);
+}
+
+/** 학생 반응 등록/수정 (답변당 1인 1반응, upsert). comment 는 최대 20자 */
+export async function setReaction(input: {
+  answerId: string;
+  questionId: string;
+  userId: string;
+  userName: string;
+  emoji: string;
+  comment: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!REACTION_EMOJIS.includes(input.emoji)) return { ok: false, error: "허용되지 않은 반응입니다." };
+  const comment = input.comment.trim().slice(0, 20);
+  const rows = await all<AnswerReaction>("reactions");
+  const existing = rows.find((r) => r.answerId === input.answerId && r.userId === input.userId);
+  if (existing) {
+    await patch("reactions", "id", existing.id, { emoji: input.emoji, comment, createdAt: nowIso() });
+  } else {
+    await insert("reactions", {
+      id: newId("rx"),
+      answerId: input.answerId,
+      questionId: input.questionId,
+      userId: input.userId,
+      userName: input.userName,
+      emoji: input.emoji,
+      comment,
+      createdAt: nowIso(),
+    });
+  }
+  return { ok: true };
 }
 
 export async function likeAnswer(id: string): Promise<void> {

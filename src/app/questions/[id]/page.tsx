@@ -7,6 +7,7 @@ import {
   getMentorsByIds,
   answerLinksForQuestion,
   getUserById,
+  listReactionsByQuestion,
 } from "@/lib/repo";
 import { getSession } from "@/lib/session";
 import { themeName } from "@/lib/taxonomy";
@@ -35,6 +36,14 @@ export default async function QuestionDetailPage({
     listAnswers(question.id),
     getMentorsByIds(question.targetMentorIds),
   ]);
+  const reactions = await listReactionsByQuestion(question.id);
+  const reactionsByAnswer = new Map<string, typeof reactions>();
+  for (const r of reactions) {
+    const arr = reactionsByAnswer.get(r.answerId) ?? [];
+    arr.push(r);
+    reactionsByAnswer.set(r.answerId, arr);
+  }
+  const myUid = session?.uid;
   const chips = Object.entries(question.themeRefs)
     .filter(([, v]) => !!v)
     .map(([, v]) => themeName(v as string))
@@ -163,6 +172,14 @@ export default async function QuestionDetailPage({
                   mentorTitle={mentor?.title}
                   questionId={question.id}
                   isSuperAdmin={isSuperAdmin}
+                  reactions={(reactionsByAnswer.get(a.id) ?? []).map((r) => ({
+                    userId: r.userId,
+                    userName: r.userName,
+                    emoji: r.emoji,
+                    comment: r.comment,
+                  }))}
+                  canReact={!!myUid}
+                  myUserId={myUid}
                 />
               );
             })}

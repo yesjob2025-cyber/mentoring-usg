@@ -349,6 +349,8 @@ function ComposePanel({
   const [pending, startTransition] = useTransition();
 
   const scope = selectedIds.length > 1 ? "전체(다중) 질문" : selectedIds.length === 1 ? "개별 질문" : "";
+  const bodyLen = body.trim().length;
+  const bodyTooShort = bodyLen < 30;
 
   function submit() {
     setResult(null);
@@ -436,8 +438,14 @@ function ComposePanel({
             onChange={(e) => setBody(e.target.value)}
             rows={5}
             className="field-input resize-none"
-            placeholder="궁금한 점을 구체적으로 적어주세요."
+            placeholder={"궁금한 점을 30자 이상 구체적으로 적어주세요.\n\n※ 멘토와의 개별 만남, 전화번호·연락처 요청은 정중히 삼가주세요. 질문은 플랫폼 내 답변으로만 주고받습니다."}
           />
+          <div className="mt-1 flex justify-between text-xs">
+            <span className={bodyLen < 30 ? "text-red-500" : "text-emerald-600"}>
+              {bodyLen < 30 ? `30자 이상 입력해 주세요 (현재 ${bodyLen}자)` : "작성 완료 ✓"}
+            </span>
+            <span className="text-ink-muted">{bodyLen}자</span>
+          </div>
         </div>
         <label className="flex items-start gap-2 text-sm text-ink-soft">
           <input
@@ -483,10 +491,10 @@ function ComposePanel({
 
       <button
         onClick={submit}
-        disabled={pending || selectedIds.length === 0}
+        disabled={pending || selectedIds.length === 0 || bodyTooShort}
         className="btn-brand mt-4 w-full"
       >
-        {pending ? "전송 중…" : `질문 보내기${selectedIds.length ? ` (${selectedIds.length}명)` : ""}`}
+        {pending ? "전송 중…" : bodyTooShort ? "질문을 30자 이상 입력하세요" : `질문 보내기${selectedIds.length ? ` (${selectedIds.length}명)` : ""}`}
       </button>
     </div>
   );

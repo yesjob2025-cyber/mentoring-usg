@@ -3,8 +3,30 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
-import { likeQuestion, likeAnswer, adoptAnswer, deleteQuestion, deleteAnswer } from "@/lib/repo";
+import { likeQuestion, likeAnswer, adoptAnswer, deleteQuestion, deleteAnswer, setReaction, getUserById } from "@/lib/repo";
 import { GRADE_AMOUNT } from "@/lib/grades";
+
+// 답변 반응(카카오식) + 짧은 코멘트(≤20자) — 로그인 학생
+export async function reactAction(input: {
+  answerId: string;
+  questionId: string;
+  emoji: string;
+  comment: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const session = await getSession();
+  if (!session?.uid) return { ok: false, error: "반응을 남기려면 로그인이 필요합니다." };
+  const user = await getUserById(session.uid);
+  const res = await setReaction({
+    answerId: input.answerId,
+    questionId: input.questionId,
+    userId: session.uid,
+    userName: user?.name ?? "학생",
+    emoji: input.emoji,
+    comment: input.comment,
+  });
+  if (res.ok) revalidatePath(`/questions/${input.questionId}`);
+  return res;
+}
 
 export async function likeQuestionAction(id: string) {
   await likeQuestion(id);

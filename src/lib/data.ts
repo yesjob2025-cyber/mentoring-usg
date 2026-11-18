@@ -26,6 +26,7 @@ const TABLE: Record<Collection, string> = {
   talkAttendance: "talk_attendance",
   talkReservations: "talk_reservations",
   settlements: "settlement_confirmations",
+  reactions: "answer_reactions",
 };
 
 export const usingSupabase = hasSupabase;

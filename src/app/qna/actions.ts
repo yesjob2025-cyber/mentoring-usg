@@ -60,7 +60,7 @@ export async function askAction(input: {
   const title = input.title.trim();
   const body = input.body.trim();
   if (title.length < 5) return { ok: false, error: "질문 제목을 5자 이상 입력해 주세요." };
-  if (body.length < 10) return { ok: false, error: "질문 내용을 10자 이상 입력해 주세요." };
+  if (body.length < 30) return { ok: false, error: "질문 내용을 30자 이상 구체적으로 입력해 주세요." };
 
   const mentors = await getMentorsByIds(input.targetMentorIds);
   if (mentors.length === 0) return { ok: false, error: "질문할 멘토를 1명 이상 선택해 주세요." };
